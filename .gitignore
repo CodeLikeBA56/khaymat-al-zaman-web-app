@@ -1,0 +1,66 @@
+# Node
+node_modules/
+
+# Next.js build output
+.next/
+out/
+.dist/
+
+# Production
+build/
+
+# Local env files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.test
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+.cache-loader/
+.parcel-cache/
+
+# Firebase local files / secrets
+.firebase/
+firebase-debug.log
+serviceAccountKey.json
+service-account*.json
+
+# Misc
+*.local
+*.env
+
+# Ignore IDE-specific local history
+.history/
