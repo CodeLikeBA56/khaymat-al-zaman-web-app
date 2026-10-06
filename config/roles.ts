@@ -45,6 +45,13 @@ export const PERMISSIONS = {
   USERS_VIEW: "users.view",
   USERS_CREATE: "users.create",
   USERS_UPDATE: "users.update",
+  ATTENDANCE_VIEW: "attendance.view",
+  ATTENDANCE_UPDATE: "attendance.update",
+  SALARY_VIEW: "salary.view",
+  SALARY_UPDATE: "salary.update",
+  SALARY_PAYMENT_CREATE: "salary_payment.create",
+  SALARY_ADVANCE_CREATE: "salary_advance.create",
+  FINANCIAL_REPORTS_VIEW: "financial_reports.view",
   REPORTS_VIEW: "reports.view",
 } as const;
 
@@ -66,6 +73,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.BILLING_VIEW,
     PERMISSIONS.BILLING_CREATE,
     PERMISSIONS.TABLES_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.SALARY_VIEW,
+    PERMISSIONS.SALARY_PAYMENT_CREATE,
   ],
   chef: [
     PERMISSIONS.ORDERS_VIEW,

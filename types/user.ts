@@ -6,8 +6,13 @@ export type DutySchedule = {
 };
 
 export type EmploymentPeriod = {
+  id: string;
   joinedAt: unknown;
   leftAt?: unknown | null;
+  salary: number;
+  role: Role;
+  workingHoursPerDay: number;
+  reasonForLeaving?: string;
 };
 
 export type PermissionOverrides = {
@@ -15,13 +20,14 @@ export type PermissionOverrides = {
   deny: Permission[];
 };
 
+export type AuthProviderType = "email" | "phone";
+
 export type UserDocument = {
   uid: string;
   name: string;
-  email: string;
-  role: Role;
-  salary: number;
-  workingHoursPerDay: number;
+  authProvider: AuthProviderType;
+  email?: string;
+  phoneNumber?: string;
   dutySchedule: DutySchedule[];
   alias: string;
   pin: string;

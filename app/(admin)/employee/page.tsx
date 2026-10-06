@@ -1,36 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { Plus, RefreshCw } from "lucide-react";
-import { db } from "@/lib/firebase";
-import type { UserDocument } from "@/types/user";
 import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchEmployees } from "@/store/employee/employee.reducer";
 import { EmployeesTable } from "@/components/employees/employees-table";
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<UserDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const dispatch = useAppDispatch();
+  const { employees, isLoading, error } = useAppSelector((state) => state.employee);
+  
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadEmployees = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const snapshot = await getDocs(query(collection(db, "users"), orderBy("name")));
-      setEmployees(snapshot.docs.map((item) => item.data() as UserDocument));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load employees.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setRefreshing(true);
+    await dispatch(fetchEmployees({ force: true }));
+    setRefreshing(false);
+  }, [dispatch]);
 
   useEffect(() => {
-    void loadEmployees();
-  }, [loadEmployees]);
+    if (employees.length === 0) {
+      void dispatch(fetchEmployees());
+    }
+  }, [dispatch, employees.length]);
 
   return (
     <section className="space-y-6">
@@ -41,7 +35,7 @@ export default function EmployeesPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => void loadEmployees()} aria-label="Refresh employees">
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <Button asChild>
             <Link href="/emplyee/create">
@@ -54,7 +48,7 @@ export default function EmployeesPage() {
 
       {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 
-      {loading ? (
+      {isLoading && employees.length === 0 ? (
         <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Loading employees...</div>
       ) : (
         <EmployeesTable data={employees} />
