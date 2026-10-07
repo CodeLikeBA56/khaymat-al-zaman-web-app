@@ -1,16 +1,19 @@
 "use client";
 
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { useAppDispatch } from "@/store/hooks";
 import type { UserDocument } from "@/types/user";
+import { usePathname, useRouter } from "next/navigation";
+import { getCurrentRoleFromProfile } from "@/lib/employment";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { createContext, useContext, useEffect, useState } from "react";
+import { fetchUserDocumentById } from "@/store/employee/employee.service";
+import { clearAuthSession, setAuthSession } from "@/store/auth/auth.reducer";
 
 type AuthContextValue = {
+  loading: boolean;
   user: User | null;
   profile: UserDocument | null;
-  loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue>({
@@ -20,11 +23,13 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const dispatch = useAppDispatch();
+
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserDocument | null>(null);
-  const [loading, setLoading] = useState(true);
-  const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (nextUser) => {
@@ -33,24 +38,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!nextUser) {
         setProfile(null);
         setLoading(false);
+        dispatch(clearAuthSession());
         if (pathname !== "/login") router.replace("/login");
         return;
       }
 
-      const snapshot = await getDoc(doc(db, "users", nextUser.uid));
-      const nextProfile = snapshot.exists() ? (snapshot.data() as UserDocument) : null;
-      setProfile(nextProfile);
-      setLoading(false);
+      try {
+        const nextProfile = await fetchUserDocumentById(nextUser.uid);
+        const currentRole = getCurrentRoleFromProfile(nextProfile);
 
-      if (pathname === "/login") {
-        router.replace(nextProfile?.role === "admin" ? "/employee" : "/login");
-      } else if (nextProfile?.role !== "admin") {
-        router.replace("/login");
+        setProfile(nextProfile);
+        setLoading(false);
+
+        if (nextProfile && currentRole) {
+          dispatch(
+            setAuthSession({
+              uid: nextProfile.uid,
+              role: currentRole,
+            }),
+          );
+        } else {
+          dispatch(clearAuthSession());
+        }
+
+        if (pathname === "/login") {
+          router.replace(currentRole === "admin" ? "/dashboard" : "/login");
+        } else if (currentRole !== "admin") {
+          await auth.signOut();
+          router.replace("/login");
+        }
+      } catch {
+        setProfile(null);
+        setLoading(false);
+        dispatch(clearAuthSession());
+        if (pathname !== "/login") router.replace("/login");
       }
     });
-  }, [pathname, router]);
+  }, [dispatch, pathname, router]);
 
-  return <AuthContext.Provider value={{ user, profile, loading }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, profile, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

@@ -13,14 +13,60 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /attendance/{attendanceId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /salaryPeriods/{salaryPeriodId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /salaryPayments/{salaryPaymentId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /salaryAdvances/{salaryAdvanceId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
 
     function isAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+
+      let latestPeriod =
+        userDoc.workHistory is list && userDoc.workHistory.size() > 0
+          ? userDoc.workHistory[userDoc.workHistory.size() - 1]
+          : null;
+
+      let latestPeriodIsActive =
+        latestPeriod != null
+          && (
+            !("leftAt" in latestPeriod)
+            || latestPeriod.leftAt == null
+          );
+
+      let hasAdminRoleFromWorkHistory =
+        latestPeriod != null
+          && latestPeriod.role == "admin"
+          && latestPeriodIsActive;
+
+      // Backward compatibility for legacy documents that still rely on top-level role.
+      let hasLegacyAdminRole = userDoc.role == "admin";
+
       return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+        && userDoc.isActive == true
+        && (hasAdminRoleFromWorkHistory || hasLegacyAdminRole);
     }
   }
 }
