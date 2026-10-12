@@ -1,4 +1,5 @@
 import type { UserDocument } from "@/types/user";
+import type { SalaryPeriod } from "@/types/finance";
 import { getCurrentEmploymentSnapshot } from "@/lib/employment";
 
 export type SalaryDetailsRow = {
@@ -10,11 +11,21 @@ export type SalaryDetailsRow = {
 
 export function buildSalaryDetailsRows(
   employees: UserDocument[],
+  outstandingSalaryPeriods: SalaryPeriod[],
 ): SalaryDetailsRow[] {
+  const remainingByUserId = outstandingSalaryPeriods.reduce<Record<string, number>>(
+    (accumulator, period) => {
+      accumulator[period.userId] =
+        (accumulator[period.userId] ?? 0) + period.remainingAmount;
+      return accumulator;
+    },
+    {},
+  );
+
   return employees.map((employee) => {
     const employment = getCurrentEmploymentSnapshot(employee);
     const salary = employment.salary;
-    const remainingSalary = salary;
+    const remainingSalary = remainingByUserId[employee.uid] ?? 0;
 
     return {
       uid: employee.uid,

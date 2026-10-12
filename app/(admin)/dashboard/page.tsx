@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Coins } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/finance";
-import { buildSalaryDetailsRows, sumSalaries } from "@/lib/dashboard";
+import type { SalaryPeriod } from "@/types/finance";
+import { buildSalaryDetailsRows, sumRemainingSalaries } from "@/lib/dashboard";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchEmployees } from "@/store/employee/employee.reducer";
+import { fetchAllOutstandingSalaryPeriodsService } from "@/store/finance/finance.service";
 import { StatsCard } from "@/components/dashboard/stats-card";
 
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const [outstandingSalaryPeriods, setOutstandingSalaryPeriods] = useState<
+    SalaryPeriod[]
+  >([]);
   const { employees, isLoading } = useAppSelector((state) => state.employee);
 
   useEffect(() => {
@@ -20,8 +25,23 @@ export default function DashboardPage() {
     }
   }, [dispatch, employees.length]);
 
-  const rows = useMemo(() => buildSalaryDetailsRows(employees), [employees]);
-  const totalSalaryToPay = useMemo(() => sumSalaries(rows), [rows]);
+  useEffect(() => {
+    async function loadOutstandingPeriods() {
+      const periods = await fetchAllOutstandingSalaryPeriodsService();
+      setOutstandingSalaryPeriods(periods);
+    }
+
+    void loadOutstandingPeriods();
+  }, []);
+
+  const rows = useMemo(
+    () => buildSalaryDetailsRows(employees, outstandingSalaryPeriods),
+    [employees, outstandingSalaryPeriods],
+  );
+  const totalRemainingSalary = useMemo(
+    () => sumRemainingSalaries(rows),
+    [rows],
+  );
 
   return (
     <section className="space-y-6">
@@ -36,8 +56,10 @@ export default function DashboardPage() {
         <StatsCard
           icon={Coins}
           title="Overall Salary to Pay"
-          description="Total current salary of all employees. Click to open details page."
-          value={isLoading ? "Loading..." : formatCurrency(totalSalaryToPay)}
+          description="Outstanding salary from generated salary slips. Click to open details page."
+          value={
+            isLoading ? "Loading..." : formatCurrency(totalRemainingSalary)
+          }
           onClick={() => router.push("/dashboard/salary-details")}
         />
       </div>

@@ -36,35 +36,42 @@ import type {
 } from "@/types/finance";
 
 export async function fetchEmployeeFinanceService(userId: string) {
-  const [periodsSnapshot, paymentsSnapshot, advancesSnapshot] = await Promise.all([
-    getDocs(
-      query(
-        collection(db, SALARY_PERIODS_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("year", "desc"),
-        orderBy("month", "desc"),
+  const [periodsSnapshot, paymentsSnapshot, advancesSnapshot] =
+    await Promise.all([
+      getDocs(
+        query(
+          collection(db, SALARY_PERIODS_COLLECTION),
+          where("userId", "==", userId),
+          orderBy("year", "desc"),
+          orderBy("month", "desc"),
+        ),
       ),
-    ),
-    getDocs(
-      query(
-        collection(db, SALARY_PAYMENTS_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("date", "desc"),
+      getDocs(
+        query(
+          collection(db, SALARY_PAYMENTS_COLLECTION),
+          where("userId", "==", userId),
+          orderBy("date", "desc"),
+        ),
       ),
-    ),
-    getDocs(
-      query(
-        collection(db, SALARY_ADVANCES_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("date", "desc"),
+      getDocs(
+        query(
+          collection(db, SALARY_ADVANCES_COLLECTION),
+          where("userId", "==", userId),
+          orderBy("date", "desc"),
+        ),
       ),
-    ),
-  ]);
+    ]);
 
   return {
-    salaryPeriods: periodsSnapshot.docs.map((item) => item.data() as SalaryPeriod),
-    salaryPayments: paymentsSnapshot.docs.map((item) => item.data() as SalaryPayment),
-    salaryAdvances: advancesSnapshot.docs.map((item) => item.data() as SalaryAdvance),
+    salaryPeriods: periodsSnapshot.docs.map(
+      (item) => item.data() as SalaryPeriod,
+    ),
+    salaryPayments: paymentsSnapshot.docs.map(
+      (item) => item.data() as SalaryPayment,
+    ),
+    salaryAdvances: advancesSnapshot.docs.map(
+      (item) => item.data() as SalaryAdvance,
+    ),
   };
 }
 
@@ -83,7 +90,9 @@ function toAdvanceStatus(remainingAmount: number): SalaryAdvanceStatus {
   return "partially_deducted";
 }
 
-export async function generateSalaryPeriodService(input: GenerateSalaryPeriodInput) {
+export async function generateSalaryPeriodService(
+  input: GenerateSalaryPeriodInput,
+) {
   if (input.month < 1 || input.month > 12) {
     throw new Error("Month must be between 1 and 12.");
   }
@@ -114,8 +123,11 @@ export async function generateSalaryPeriodService(input: GenerateSalaryPeriodInp
     }
 
     const employee = userSnapshot.data() as UserDocument;
-    const activeEmploymentPeriod = getRecentActiveEmploymentPeriod(employee.workHistory);
-    const baseSalary = input.baseSalaryOverride ?? activeEmploymentPeriod?.salary ?? 0;
+    const activeEmploymentPeriod = getRecentActiveEmploymentPeriod(
+      employee.workHistory,
+    );
+    const baseSalary =
+      input.baseSalaryOverride ?? activeEmploymentPeriod?.salary ?? 0;
 
     if (!activeEmploymentPeriod) {
       throw new Error("Employee has no employment history period.");
@@ -163,7 +175,10 @@ export async function generateSalaryPeriodService(input: GenerateSalaryPeriodInp
       const nextRemaining = advance.remainingAmount - deductionAmount;
       transaction.update(advanceRef, {
         remainingAmount: nextRemaining,
-        status: nextRemaining <= 0 ? "fully_deducted" : toAdvanceStatus(nextRemaining),
+        status:
+          nextRemaining <= 0
+            ? "fully_deducted"
+            : toAdvanceStatus(nextRemaining),
         updatedAt: serverTimestamp(),
       });
     }
@@ -205,12 +220,18 @@ export type AddSalaryAdjustmentInput = {
   referenceId?: string;
 };
 
-export async function addSalaryAdjustmentService(input: AddSalaryAdjustmentInput) {
+export async function addSalaryAdjustmentService(
+  input: AddSalaryAdjustmentInput,
+) {
   if (input.amount <= 0) {
     throw new Error("Adjustment amount must be greater than zero.");
   }
 
-  const salaryPeriodRef = doc(db, SALARY_PERIODS_COLLECTION, input.salaryPeriodId);
+  const salaryPeriodRef = doc(
+    db,
+    SALARY_PERIODS_COLLECTION,
+    input.salaryPeriodId,
+  );
 
   await runTransaction(db, async (transaction) => {
     const salaryPeriodSnapshot = await transaction.get(salaryPeriodRef);
@@ -255,7 +276,10 @@ export async function addSalaryAdjustmentService(input: AddSalaryAdjustmentInput
       },
     ];
 
-    const totals = calculateSalaryTotals(salaryPeriod.baseSalary, nextAdjustments);
+    const totals = calculateSalaryTotals(
+      salaryPeriod.baseSalary,
+      nextAdjustments,
+    );
     if (salaryPeriod.paidAmount > totals.netSalary) {
       throw new Error("Adjustment would make paid amount exceed net salary.");
     }
@@ -291,7 +315,9 @@ export type CreateSalaryAdvanceInput = {
   paidBy: string;
 };
 
-export async function createSalaryAdvanceService(input: CreateSalaryAdvanceInput) {
+export async function createSalaryAdvanceService(
+  input: CreateSalaryAdvanceInput,
+) {
   if (input.amount <= 0) {
     throw new Error("Advance amount must be greater than zero.");
   }
@@ -331,6 +357,22 @@ export async function fetchOutstandingSalaryPeriodsService(userId: string) {
   return snapshot.docs.map((item) => item.data() as SalaryPeriod);
 }
 
+export async function fetchAllOutstandingSalaryPeriodsService() {
+  const snapshot = await getDocs(
+    query(
+      collection(db, SALARY_PERIODS_COLLECTION),
+      where("remainingAmount", ">", 0),
+    ),
+  );
+
+  return snapshot.docs
+    .map((item) => item.data() as SalaryPeriod)
+    .sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+}
+
 export type CreateSalaryPaymentInput = {
   userId: string;
   date: Date;
@@ -341,12 +383,16 @@ export type CreateSalaryPaymentInput = {
   paidBy: string;
 };
 
-export async function createSalaryPaymentService(input: CreateSalaryPaymentInput) {
+export async function createSalaryPaymentService(
+  input: CreateSalaryPaymentInput,
+) {
   if (input.amount <= 0) {
     throw new Error("Payment amount must be greater than zero.");
   }
 
-  const outstandingPeriods = await fetchOutstandingSalaryPeriodsService(input.userId);
+  const outstandingPeriods = await fetchOutstandingSalaryPeriodsService(
+    input.userId,
+  );
   const allocations = input.allocations?.length
     ? input.allocations
     : autoAllocateOldestOutstanding(
@@ -360,7 +406,8 @@ export async function createSalaryPaymentService(input: CreateSalaryPaymentInput
       );
 
   const allocationTotal = sumAllocations(allocations);
-  if (allocationTotal !== input.amount) {
+  const epsilon = 0.0001;
+  if (Math.abs(allocationTotal - input.amount) > epsilon) {
     throw new Error("Allocation total must be equal to payment amount.");
   }
 
@@ -369,7 +416,9 @@ export async function createSalaryPaymentService(input: CreateSalaryPaymentInput
   await runTransaction(db, async (transaction) => {
     const periodSnapshots = await Promise.all(
       allocations.map((allocation) =>
-        transaction.get(doc(db, SALARY_PERIODS_COLLECTION, allocation.salaryPeriodId)),
+        transaction.get(
+          doc(db, SALARY_PERIODS_COLLECTION, allocation.salaryPeriodId),
+        ),
       ),
     );
 

@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/finance";
+import type { SalaryPeriod } from "@/types/finance";
 import { buildSalaryDetailsRows, sumRemainingSalaries } from "@/lib/dashboard";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchEmployees } from "@/store/employee/employee.reducer";
+import { fetchAllOutstandingSalaryPeriodsService } from "@/store/finance/finance.service";
 import { SalaryDetailsTable } from "@/components/dashboard/salary-details-table";
 
 export default function SalaryDetailsPage() {
   const dispatch = useAppDispatch();
+  const [outstandingSalaryPeriods, setOutstandingSalaryPeriods] = useState<
+    SalaryPeriod[]
+  >([]);
   const { employees, isLoading } = useAppSelector((state) => state.employee);
 
   useEffect(() => {
@@ -20,7 +25,19 @@ export default function SalaryDetailsPage() {
     }
   }, [dispatch, employees.length]);
 
-  const rows = useMemo(() => buildSalaryDetailsRows(employees), [employees]);
+  useEffect(() => {
+    async function loadOutstandingPeriods() {
+      const periods = await fetchAllOutstandingSalaryPeriodsService();
+      setOutstandingSalaryPeriods(periods);
+    }
+
+    void loadOutstandingPeriods();
+  }, []);
+
+  const rows = useMemo(
+    () => buildSalaryDetailsRows(employees, outstandingSalaryPeriods),
+    [employees, outstandingSalaryPeriods],
+  );
   const totalRemainingSalary = useMemo(
     () => sumRemainingSalaries(rows),
     [rows],
