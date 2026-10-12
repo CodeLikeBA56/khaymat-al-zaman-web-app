@@ -42,9 +42,12 @@ type SearchInput = {
   text: string;
 };
 
+export type SupplierStatusFilter = "active" | "inactive" | "all";
+
 export type ListSuppliersPageInput = {
   pageSize?: number;
   cursor?: string | null;
+  status?: SupplierStatusFilter;
   includeInactive?: boolean;
   type?: SupplierType;
   country?: string;
@@ -180,6 +183,19 @@ function resolveSearchField(search?: SearchInput) {
   return "phoneSearch";
 }
 
+function resolveStatusFilter(input: ListSuppliersPageInput): SupplierStatusFilter {
+  if (input.status) {
+    if (!["active", "inactive", "all"].includes(input.status)) {
+      throw new Error("Supplier status filter is invalid.");
+    }
+
+    return input.status;
+  }
+
+  // Backward compatibility with older callers.
+  return input.includeInactive ? "all" : "active";
+}
+
 function formatSupplierCode(sequenceNumber: number) {
   return `${SUPPLIER_CODE_PREFIX}-${String(sequenceNumber).padStart(6, "0")}`;
 }
@@ -218,6 +234,28 @@ async function reserveSupplierCode() {
   return formatSupplierCode(sequenceNumber);
 }
 
+function buildActivationUpdatePayload(isActive: boolean) {
+  return {
+    isActive,
+    updatedAt: serverTimestamp(),
+  };
+}
+
+async function setSupplierActivationStateService(
+  supplierId: string,
+  isActive: boolean,
+) {
+  const normalizedSupplierId = supplierId.trim();
+  if (!normalizedSupplierId) {
+    throw new Error("Supplier id is required.");
+  }
+
+  await updateDoc(
+    doc(db, VENDORS_COLLECTION, normalizedSupplierId),
+    buildActivationUpdatePayload(isActive),
+  );
+}
+
 export async function createSupplierService(input: CreateSupplierInput) {
   const normalized = normalizeCreateInput(input);
   const code = await reserveSupplierCode();
@@ -251,6 +289,7 @@ export async function listSuppliersPageService(
 ): Promise<SuppliersPage> {
   const pageSize = resolvePageSize(input.pageSize);
   const searchField = resolveSearchField(input.search);
+  const status = resolveStatusFilter(input);
   const searchText = input.search?.text ? toSearchValue(input.search.text) : "";
 
   if (input.type && !Object.values(SupplierType).includes(input.type)) {
@@ -265,8 +304,10 @@ export async function listSuppliersPageService(
 
   const constraints: QueryConstraint[] = [];
 
-  if (!input.includeInactive) {
+  if (status === "active") {
     constraints.push(where("isActive", "==", true));
+  } else if (status === "inactive") {
+    constraints.push(where("isActive", "==", false));
   }
 
   if (input.type) {
@@ -310,6 +351,21 @@ export async function listSuppliersPageService(
     hasMore: snapshot.docs.length === pageSize,
     nextCursor: typeof nextCursorRaw === "string" ? nextCursorRaw : null,
   };
+}
+
+export async function listActiveSuppliersForSelectionService(pageSize = 50) {
+  const resolvedPageSize = resolvePageSize(pageSize);
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, VENDORS_COLLECTION),
+      where("isActive", "==", true),
+      orderBy("nameSearch", "asc"),
+      limit(resolvedPageSize),
+    ),
+  );
+
+  return snapshot.docs.map((item) => mapSupplierDocument(item));
 }
 
 export async function getSupplierByIdService(supplierId: string) {
@@ -387,3 +443,16 @@ export async function updateSupplierService(
 
   await updateDoc(doc(db, VENDORS_COLLECTION, normalizedSupplierId), payload);
 }
+
+export async function activateSupplierService(supplierId: string) {
+  await setSupplierActivationStateService(supplierId, true);
+}
+
+export async function deactivateSupplierService(supplierId: string) {
+  await setSupplierActivationStateService(supplierId, false);
+}
+
+export const __supplierServiceInternals = {
+  resolveStatusFilter,
+  buildActivationUpdatePayload,
+};

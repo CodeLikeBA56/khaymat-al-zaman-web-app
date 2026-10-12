@@ -39,7 +39,10 @@ service cloud.firestore {
 
     match /vendors/{vendorId} {
       allow read: if isAdmin();
-      allow create, update: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
     }
 
