@@ -21,7 +21,7 @@ export interface SupplierDocument {
   type: SupplierType;
   email?: string;
   phone: string;
-  address: Address;
+  address?: Address;
   taxNumber?: string;
   registrationNumber?: string;
   isActive: boolean;
@@ -33,14 +33,11 @@ export interface Supplier extends SupplierDocument {
   id: string;
 }
 
-export type CreateSupplierInput = Pick<
-  SupplierDocument,
-  "name" | "type" | "phone" | "address"
-> &
+export type CreateSupplierInput = Pick<SupplierDocument, "name" | "type" | "phone"> &
   Partial<
     Pick<
       SupplierDocument,
-      "email" | "taxNumber" | "registrationNumber"
+      "email" | "taxNumber" | "registrationNumber" | "address"
     >
   >;
 

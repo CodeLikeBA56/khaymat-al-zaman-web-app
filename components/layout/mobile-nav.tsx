@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Menu, Users } from "lucide-react";
+import { Building2, LayoutDashboard, Menu, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +32,13 @@ export function MobileNav() {
         >
           <Users className="h-4 w-4" />
           Employees
+        </Link>
+        <Link
+          href="/vendor"
+          className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-accent"
+        >
+          <Building2 className="h-4 w-4" />
+          Vendors
         </Link>
       </SheetContent>
     </Sheet>

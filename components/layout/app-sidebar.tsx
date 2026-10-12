@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Building2,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -24,7 +25,7 @@ const navigationGroups = [
   {
     name: "Restaurant",
     icon: Utensils,
-    links: [],
+    links: [{ name: "Vendors", icon: Building2, href: "/vendor" }],
   },
 ];
 
@@ -32,7 +33,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Administration: true,
-    Restaurant: false,
+    Restaurant: true,
   });
 
   return (

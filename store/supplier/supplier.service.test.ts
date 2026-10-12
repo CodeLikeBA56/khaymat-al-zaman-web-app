@@ -45,7 +45,8 @@ test("buildActivationUpdatePayload sets isActive true", () => {
 });
 
 test("buildActivationUpdatePayload sets isActive false", () => {
-  const payload = __supplierServiceInternals.buildActivationUpdatePayload(false);
+  const payload =
+    __supplierServiceInternals.buildActivationUpdatePayload(false);
 
   assert.equal(payload.isActive, false);
   assert.ok(payload.updatedAt);

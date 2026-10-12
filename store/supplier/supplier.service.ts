@@ -91,6 +91,31 @@ function normalizeAddress(address: Address): Address {
   };
 }
 
+function normalizeOptionalAddress(address?: Partial<Address>) {
+  if (!address) return undefined;
+
+  const hasAnyAddressValue = [
+    address.line1,
+    address.line2,
+    address.city,
+    address.state,
+    address.zip,
+    address.country,
+  ].some((value) => Boolean(value?.trim()));
+
+  if (!hasAnyAddressValue) {
+    return undefined;
+  }
+
+  if (!address.line1?.trim() || !address.city?.trim() || !address.country?.trim()) {
+    throw new Error(
+      "When address is provided, line 1, city, and country are required.",
+    );
+  }
+
+  return normalizeAddress(address as Address);
+}
+
 function normalizeCreateInput(input: CreateSupplierInput) {
   const name = input.name.trim();
   const phone = input.phone.trim();
@@ -111,7 +136,7 @@ function normalizeCreateInput(input: CreateSupplierInput) {
     name,
     type: input.type,
     phone,
-    address: normalizeAddress(input.address),
+    address: normalizeOptionalAddress(input.address),
     email: input.email?.trim() || undefined,
     taxNumber: input.taxNumber?.trim() || undefined,
     registrationNumber: input.registrationNumber?.trim() || undefined,
@@ -264,11 +289,13 @@ export async function createSupplierService(input: CreateSupplierInput) {
     code,
     name: normalized.name,
     type: normalized.type,
-    email: normalized.email,
     phone: normalized.phone,
-    address: normalized.address,
-    taxNumber: normalized.taxNumber,
-    registrationNumber: normalized.registrationNumber,
+    ...(normalized.address ? { address: normalized.address } : {}),
+    ...(normalized.email ? { email: normalized.email } : {}),
+    ...(normalized.taxNumber ? { taxNumber: normalized.taxNumber } : {}),
+    ...(normalized.registrationNumber
+      ? { registrationNumber: normalized.registrationNumber }
+      : {}),
     isActive: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -277,7 +304,9 @@ export async function createSupplierService(input: CreateSupplierInput) {
     nameSearch: toSearchValue(normalized.name),
     codeSearch: toSearchValue(code),
     phoneSearch: toSearchValue(normalized.phone),
-    addressCountrySearch: toSearchValue(normalized.address.country),
+    ...(normalized.address
+      ? { addressCountrySearch: toSearchValue(normalized.address.country) }
+      : {}),
   };
 
   const created = await addDoc(collection(db, VENDORS_COLLECTION), payload);
@@ -422,9 +451,14 @@ export async function updateSupplierService(
   }
 
   if (input.address !== undefined) {
-    const normalizedAddress = normalizeAddress(input.address);
-    payload.address = normalizedAddress;
-    payload.addressCountrySearch = toSearchValue(normalizedAddress.country);
+    const normalizedAddress = normalizeOptionalAddress(input.address);
+    if (normalizedAddress) {
+      payload.address = normalizedAddress;
+      payload.addressCountrySearch = toSearchValue(normalizedAddress.country);
+    } else {
+      payload.address = null;
+      payload.addressCountrySearch = null;
+    }
   }
 
   if (input.email !== undefined) {
