@@ -37,6 +37,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /vendors/{vendorId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /meta/{metaId} {
+      allow read, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
