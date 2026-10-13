@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
+  ReceiptText,
   Users,
   Utensils,
 } from "lucide-react";
@@ -25,7 +26,14 @@ const navigationGroups = [
   {
     name: "Restaurant",
     icon: Utensils,
-    links: [{ name: "Vendors", icon: Building2, href: "/vendor" }],
+    links: [
+      { name: "Vendors", icon: Building2, href: "/vendor" },
+      {
+        name: "Purchase Invoices",
+        icon: ReceiptText,
+        href: "/purchase-invoice",
+      },
+    ],
   },
 ];
 
