@@ -6,6 +6,84 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isValidPurchaseInvoiceStatus(status) {
+      return status == "DRAFT"
+        || status == "POSTED"
+        || status == "PARTIALLY_PAID"
+        || status == "PAID"
+        || status == "VOID";
+    }
+
+    function hasValidPurchaseInvoiceShape() {
+      return request.resource.data.invoiceNumber is string
+        && request.resource.data.invoiceNumberSearch is string
+        && request.resource.data.supplierId is string
+        && request.resource.data.invoiceDate is timestamp
+        && request.resource.data.lines is list
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.subTotalMinor is int
+        && request.resource.data.subTotalMinor >= 0
+        && request.resource.data.taxAmountMinor is int
+        && request.resource.data.taxAmountMinor >= 0
+        && request.resource.data.discountAmountMinor is int
+        && request.resource.data.discountAmountMinor >= 0
+        && request.resource.data.grandTotalMinor is int
+        && request.resource.data.grandTotalMinor >= 0
+        && request.resource.data.grandTotalMinor ==
+          request.resource.data.subTotalMinor
+            + request.resource.data.taxAmountMinor
+            - request.resource.data.discountAmountMinor
+        && request.resource.data.currency is string
+        && request.resource.data.currencyMinorUnit is int
+        && request.resource.data.currencyMinorUnit >= 0
+        && request.resource.data.currencyMinorUnit <= 6
+        && isValidPurchaseInvoiceStatus(request.resource.data.status)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function hasProtectedInvoiceIdentityFields() {
+      return request.resource.data.invoiceNumber == resource.data.invoiceNumber
+        && request.resource.data.invoiceNumberSearch == resource.data.invoiceNumberSearch
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function hasImmutablePostedFinancialFields() {
+      return request.resource.data.supplierId == resource.data.supplierId
+        && request.resource.data.invoiceDate == resource.data.invoiceDate
+        && request.resource.data.dueDate == resource.data.dueDate
+        && request.resource.data.lines == resource.data.lines
+        && request.resource.data.subTotalMinor == resource.data.subTotalMinor
+        && request.resource.data.taxAmountMinor == resource.data.taxAmountMinor
+        && request.resource.data.discountAmountMinor == resource.data.discountAmountMinor
+        && request.resource.data.grandTotalMinor == resource.data.grandTotalMinor
+        && request.resource.data.currency == resource.data.currency
+        && request.resource.data.currencyMinorUnit == resource.data.currencyMinorUnit;
+    }
+
+    function isDraftEditUpdate() {
+      return resource.data.status == "DRAFT"
+        && request.resource.data.status == "DRAFT";
+    }
+
+    function isDraftPostUpdate() {
+      return resource.data.status == "DRAFT"
+        && request.resource.data.status == "POSTED"
+        && hasImmutablePostedFinancialFields();
+    }
+
+    function isControlledVoidUpdate() {
+      return (
+          resource.data.status == "DRAFT"
+          || resource.data.status == "POSTED"
+          || resource.data.status == "PARTIALLY_PAID"
+        )
+        && request.resource.data.status == "VOID"
+        && hasImmutablePostedFinancialFields()
+        && request.resource.data.voidReason is string
+        && request.resource.data.voidReason.size() > 0;
+    }
+
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow create: if isAdmin();
@@ -44,6 +122,29 @@ service cloud.firestore {
         && request.resource.data.code == resource.data.code
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
+    }
+
+    match /purchaseInvoices/{invoiceId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && hasValidPurchaseInvoiceShape()
+        && request.resource.data.status == "DRAFT";
+      allow update: if isAdmin()
+        && hasValidPurchaseInvoiceShape()
+        && hasProtectedInvoiceIdentityFields()
+        && (
+          isDraftEditUpdate()
+          || isDraftPostUpdate()
+          || isControlledVoidUpdate()
+        );
+      allow delete: if false;
+    }
+
+    match /purchaseInvoiceNumbers/{invoiceNumber} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.invoiceNumber == invoiceNumber;
+      allow update, delete: if false;
     }
 
     match /meta/{metaId} {
