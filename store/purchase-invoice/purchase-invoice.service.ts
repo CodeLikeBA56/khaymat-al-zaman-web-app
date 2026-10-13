@@ -109,6 +109,13 @@ function mapPurchaseInvoiceDocument(
     throw new Error("Purchase invoice document data is missing.");
   }
 
+  const paidAmountMinor =
+    typeof data.paidAmountMinor === "number" ? data.paidAmountMinor : 0;
+  const remainingPayableMinor =
+    typeof data.remainingPayableMinor === "number"
+      ? data.remainingPayableMinor
+      : data.grandTotalMinor - paidAmountMinor;
+
   return {
     id: snapshot.id,
     invoiceNumber: data.invoiceNumber,
@@ -120,6 +127,8 @@ function mapPurchaseInvoiceDocument(
     taxAmountMinor: data.taxAmountMinor,
     discountAmountMinor: data.discountAmountMinor,
     grandTotalMinor: data.grandTotalMinor,
+    paidAmountMinor,
+    remainingPayableMinor,
     currency: data.currency,
     currencyMinorUnit: data.currencyMinorUnit,
     status: data.status,
@@ -339,6 +348,8 @@ export async function createPurchaseInvoiceDraftService(
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     currency,
     currencyMinorUnit,
     status: PurchaseInvoiceStatus.DRAFT,
@@ -522,6 +533,8 @@ export async function updateDraftPurchaseInvoiceService(
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     currency: nextCurrency,
     currencyMinorUnit: nextCurrencyMinorUnit,
     ...(input.notes !== undefined
@@ -565,6 +578,8 @@ export async function postPurchaseInvoiceService(invoiceId: string) {
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     status: PurchaseInvoiceStatus.POSTED,
     postedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

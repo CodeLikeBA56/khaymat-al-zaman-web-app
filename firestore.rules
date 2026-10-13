@@ -14,6 +14,18 @@ service cloud.firestore {
         || status == "VOID";
     }
 
+    function isValidSupplierPaymentStatus(status) {
+      return status == "RECORDED" || status == "VOID";
+    }
+
+    function isValidSupplierPaymentMethod(method) {
+      return method == "CASH"
+        || method == "BANK_TRANSFER"
+        || method == "CARD"
+        || method == "CHEQUE"
+        || method == "OTHER";
+    }
+
     function hasValidPurchaseInvoiceShape() {
       return request.resource.data.invoiceNumber is string
         && request.resource.data.invoiceNumberSearch is string
@@ -29,10 +41,17 @@ service cloud.firestore {
         && request.resource.data.discountAmountMinor >= 0
         && request.resource.data.grandTotalMinor is int
         && request.resource.data.grandTotalMinor >= 0
+        && request.resource.data.paidAmountMinor is int
+        && request.resource.data.paidAmountMinor >= 0
+        && request.resource.data.remainingPayableMinor is int
+        && request.resource.data.remainingPayableMinor >= 0
         && request.resource.data.grandTotalMinor ==
           request.resource.data.subTotalMinor
             + request.resource.data.taxAmountMinor
             - request.resource.data.discountAmountMinor
+        && request.resource.data.grandTotalMinor ==
+          request.resource.data.paidAmountMinor
+            + request.resource.data.remainingPayableMinor
         && request.resource.data.currency is string
         && request.resource.data.currencyMinorUnit is int
         && request.resource.data.currencyMinorUnit >= 0
@@ -61,6 +80,22 @@ service cloud.firestore {
         && request.resource.data.currencyMinorUnit == resource.data.currencyMinorUnit;
     }
 
+    function hasPaymentManagedInvoiceStateOnly() {
+      return hasImmutablePostedFinancialFields()
+        && request.resource.data.status != "DRAFT"
+        && request.resource.data.status != "VOID"
+        && (
+          (request.resource.data.remainingPayableMinor == 0
+            && request.resource.data.status == "PAID")
+          || (request.resource.data.remainingPayableMinor > 0
+            && request.resource.data.paidAmountMinor == 0
+            && request.resource.data.status == "POSTED")
+          || (request.resource.data.remainingPayableMinor > 0
+            && request.resource.data.paidAmountMinor > 0
+            && request.resource.data.status == "PARTIALLY_PAID")
+        );
+    }
+
     function isDraftEditUpdate() {
       return resource.data.status == "DRAFT"
         && request.resource.data.status == "DRAFT";
@@ -69,7 +104,9 @@ service cloud.firestore {
     function isDraftPostUpdate() {
       return resource.data.status == "DRAFT"
         && request.resource.data.status == "POSTED"
-        && hasImmutablePostedFinancialFields();
+        && hasImmutablePostedFinancialFields()
+        && request.resource.data.paidAmountMinor == 0
+        && request.resource.data.remainingPayableMinor == request.resource.data.grandTotalMinor;
     }
 
     function isControlledVoidUpdate() {
@@ -80,6 +117,51 @@ service cloud.firestore {
         )
         && request.resource.data.status == "VOID"
         && hasImmutablePostedFinancialFields()
+        && request.resource.data.voidReason is string
+        && request.resource.data.voidReason.size() > 0;
+    }
+
+    function isPaymentStateUpdate() {
+      return (resource.data.status == "POSTED"
+          || resource.data.status == "PARTIALLY_PAID"
+          || resource.data.status == "PAID")
+        && hasPaymentManagedInvoiceStateOnly();
+    }
+
+    function hasValidSupplierPaymentShape() {
+      return request.resource.data.paymentNumber is string
+        && request.resource.data.paymentNumberSearch is string
+        && request.resource.data.supplierId is string
+        && request.resource.data.paymentDate is timestamp
+        && request.resource.data.amountMinor is int
+        && request.resource.data.amountMinor > 0
+        && request.resource.data.currency is string
+        && isValidSupplierPaymentMethod(request.resource.data.method)
+        && request.resource.data.allocations is list
+        && request.resource.data.unallocatedAmountMinor is int
+        && request.resource.data.unallocatedAmountMinor >= 0
+        && isValidSupplierPaymentStatus(request.resource.data.status)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function hasProtectedSupplierPaymentIdentityFields() {
+      return request.resource.data.paymentNumber == resource.data.paymentNumber
+        && request.resource.data.paymentNumberSearch == resource.data.paymentNumberSearch
+        && request.resource.data.supplierId == resource.data.supplierId
+        && request.resource.data.paymentDate == resource.data.paymentDate
+        && request.resource.data.amountMinor == resource.data.amountMinor
+        && request.resource.data.currency == resource.data.currency
+        && request.resource.data.method == resource.data.method
+        && request.resource.data.allocations == resource.data.allocations
+        && request.resource.data.unallocatedAmountMinor == resource.data.unallocatedAmountMinor
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isSupplierPaymentVoidUpdate() {
+      return resource.data.status == "RECORDED"
+        && request.resource.data.status == "VOID"
+        && hasProtectedSupplierPaymentIdentityFields()
         && request.resource.data.voidReason is string
         && request.resource.data.voidReason.size() > 0;
     }
@@ -135,6 +217,7 @@ service cloud.firestore {
         && (
           isDraftEditUpdate()
           || isDraftPostUpdate()
+          || isPaymentStateUpdate()
           || isControlledVoidUpdate()
         );
       allow delete: if false;
@@ -144,6 +227,30 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin()
         && request.resource.data.invoiceNumber == invoiceNumber;
+      allow update, delete: if false;
+    }
+
+    match /supplierPayments/{paymentId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && hasValidSupplierPaymentShape()
+        && request.resource.data.status == "RECORDED";
+      allow update: if isAdmin()
+        && hasValidSupplierPaymentShape()
+        && isSupplierPaymentVoidUpdate();
+      allow delete: if false;
+    }
+
+    match /supplierPaymentNumbers/{paymentNumber} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.paymentNumber == paymentNumber;
+      allow update, delete: if false;
+    }
+
+    match /supplierPaymentRequests/{requestId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
       allow update, delete: if false;
     }
 

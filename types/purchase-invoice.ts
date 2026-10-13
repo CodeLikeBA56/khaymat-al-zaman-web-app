@@ -38,6 +38,8 @@ export interface PurchaseInvoiceDocument {
   taxAmountMinor: MinorUnitAmount;
   discountAmountMinor: MinorUnitAmount;
   grandTotalMinor: MinorUnitAmount;
+  paidAmountMinor: MinorUnitAmount;
+  remainingPayableMinor: MinorUnitAmount;
   currency: string;
   currencyMinorUnit: CurrencyMinorUnit;
   status: PurchaseInvoiceStatus;

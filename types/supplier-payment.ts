@@ -36,7 +36,10 @@ export interface SupplierPaymentDocument {
   referenceNumber?: string;
   notes?: string;
   allocations: SupplierPaymentAllocation[];
+  unallocatedAmountMinor: SupplierPaymentMinorAmount;
   status: SupplierPaymentStatus;
+  voidReason?: string;
+  voidedAt?: Timestamp;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 }
