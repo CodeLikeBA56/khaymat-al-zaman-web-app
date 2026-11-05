@@ -28,7 +28,15 @@ import {
   summarizeSupplierPaymentAllocations,
   type PayableInvoiceFinancialState,
 } from "@/lib/supplier-payment";
-import { normalizeCurrencyCode } from "@/lib/purchase-invoice";
+import {
+  normalizeCurrencyCode,
+  resolveCurrencyMinorUnit,
+  validateCurrencyMinorUnit,
+} from "@/lib/purchase-invoice";
+import {
+  DEFAULT_CURRENCY_CODE,
+  DEFAULT_CURRENCY_MINOR_UNIT,
+} from "@/config/currency";
 import {
   PurchaseInvoiceStatus,
   type PurchaseInvoiceDocument,
@@ -104,6 +112,10 @@ function mapSupplierPaymentDocument(
     paymentDate: data.paymentDate,
     amountMinor: data.amountMinor,
     currency: data.currency,
+    currencyMinorUnit:
+      typeof data.currencyMinorUnit === "number"
+        ? data.currencyMinorUnit
+        : resolveCurrencyMinorUnit(data.currency),
     method: data.method,
     referenceNumber: data.referenceNumber,
     notes: data.notes,
@@ -164,7 +176,10 @@ function normalizeAmountMinor(amountMinor: number) {
   return amountMinor;
 }
 
-function normalizeDateRange(input: { dateFrom?: Timestamp; dateTo?: Timestamp }) {
+function normalizeDateRange(input: {
+  dateFrom?: Timestamp;
+  dateTo?: Timestamp;
+}) {
   const { dateFrom, dateTo } = input;
 
   if (dateFrom && !(dateFrom instanceof Timestamp)) {
@@ -189,7 +204,11 @@ async function reserveSupplierPaymentNumberInTransaction(
   const normalizedProvided = normalizeOptionalText(providedPaymentNumber);
   if (normalizedProvided) {
     const paymentNumber = normalizeSupplierPaymentNumber(normalizedProvided);
-    const reservationRef = doc(db, SUPPLIER_PAYMENT_NUMBERS_COLLECTION, paymentNumber);
+    const reservationRef = doc(
+      db,
+      SUPPLIER_PAYMENT_NUMBERS_COLLECTION,
+      paymentNumber,
+    );
     const reservationSnapshot = await transaction.get(reservationRef);
 
     if (reservationSnapshot.exists()) {
@@ -212,11 +231,16 @@ async function reserveSupplierPaymentNumberInTransaction(
     ? Number((counterSnapshot.data() as { lastValue?: unknown }).lastValue ?? 0)
     : 0;
 
-  let nextValue = Number.isFinite(lastValue) && lastValue > 0 ? lastValue + 1 : 1;
+  let nextValue =
+    Number.isFinite(lastValue) && lastValue > 0 ? lastValue + 1 : 1;
 
   while (true) {
     const candidate = formatGeneratedSupplierPaymentNumber(nextValue);
-    const reservationRef = doc(db, SUPPLIER_PAYMENT_NUMBERS_COLLECTION, candidate);
+    const reservationRef = doc(
+      db,
+      SUPPLIER_PAYMENT_NUMBERS_COLLECTION,
+      candidate,
+    );
     const reservationSnapshot = await transaction.get(reservationRef);
 
     if (!reservationSnapshot.exists()) {
@@ -244,8 +268,12 @@ async function reserveSupplierPaymentNumberInTransaction(
   }
 }
 
-function getInvoiceFinancialState(data: PurchaseInvoiceFinancialDocument): PayableInvoiceFinancialState {
-  const paidAmountMinor = Number.isInteger(data.paidAmountMinor) ? data.paidAmountMinor : 0;
+function getInvoiceFinancialState(
+  data: PurchaseInvoiceFinancialDocument,
+): PayableInvoiceFinancialState {
+  const paidAmountMinor = Number.isInteger(data.paidAmountMinor)
+    ? data.paidAmountMinor
+    : 0;
   const remainingPayableMinor = Number.isInteger(data.remainingPayableMinor)
     ? data.remainingPayableMinor
     : data.grandTotalMinor - paidAmountMinor;
@@ -258,11 +286,16 @@ function getInvoiceFinancialState(data: PurchaseInvoiceFinancialDocument): Payab
   };
 }
 
-export async function recordSupplierPaymentService(input: RecordSupplierPaymentInput) {
+export async function recordSupplierPaymentService(
+  input: RecordSupplierPaymentInput,
+) {
   const supplierId = normalizeSupplierId(input.supplierId);
   const paymentDate = normalizeDate(input.paymentDate, "Payment date");
   const amountMinor = normalizeAmountMinor(input.amountMinor);
-  const currency = normalizeCurrencyCode(input.currency);
+  const currency = normalizeCurrencyCode(DEFAULT_CURRENCY_CODE);
+  const currencyMinorUnit = validateCurrencyMinorUnit(
+    DEFAULT_CURRENCY_MINOR_UNIT,
+  );
   const method = normalizeMethod(input.method);
   const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
 
@@ -295,10 +328,16 @@ export async function recordSupplierPaymentService(input: RecordSupplierPaymentI
 
   const result = await runTransaction(db, async (transaction) => {
     if (idempotencyKey) {
-      const requestRef = doc(db, SUPPLIER_PAYMENT_REQUESTS_COLLECTION, idempotencyKey);
+      const requestRef = doc(
+        db,
+        SUPPLIER_PAYMENT_REQUESTS_COLLECTION,
+        idempotencyKey,
+      );
       const requestSnapshot = await transaction.get(requestRef);
       if (requestSnapshot.exists()) {
-        const existingPaymentId = (requestSnapshot.data() as { paymentId?: unknown }).paymentId;
+        const existingPaymentId = (
+          requestSnapshot.data() as { paymentId?: unknown }
+        ).paymentId;
         if (typeof existingPaymentId === "string" && existingPaymentId.trim()) {
           return { paymentId: existingPaymentId, isDuplicate: true };
         }
@@ -323,19 +362,36 @@ export async function recordSupplierPaymentService(input: RecordSupplierPaymentI
     const paymentRef = doc(collection(db, SUPPLIER_PAYMENTS_COLLECTION));
 
     for (const allocation of groupedAllocationsList) {
-      const invoiceRef = doc(db, PURCHASE_INVOICES_COLLECTION, allocation.invoiceId);
+      const invoiceRef = doc(
+        db,
+        PURCHASE_INVOICES_COLLECTION,
+        allocation.invoiceId,
+      );
       const invoiceSnapshot = await transaction.get(invoiceRef);
       if (!invoiceSnapshot.exists()) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} was not found.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} was not found.`,
+        );
       }
 
-      const invoice = invoiceSnapshot.data() as PurchaseInvoiceFinancialDocument;
+      const invoice =
+        invoiceSnapshot.data() as PurchaseInvoiceFinancialDocument;
       if (invoice.supplierId !== supplierId) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} does not belong to supplier.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} does not belong to supplier.`,
+        );
       }
 
       if (invoice.currency !== currency) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} currency does not match payment currency.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} currency does not match payment currency.`,
+        );
+      }
+
+      if (invoice.currencyMinorUnit !== currencyMinorUnit) {
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} currency precision does not match payment currency precision.`,
+        );
       }
 
       const invoiceFinancialState = getInvoiceFinancialState(invoice);
@@ -343,7 +399,9 @@ export async function recordSupplierPaymentService(input: RecordSupplierPaymentI
         invoiceFinancialState.status !== PurchaseInvoiceStatus.POSTED &&
         invoiceFinancialState.status !== PurchaseInvoiceStatus.PARTIALLY_PAID
       ) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} is not payable.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} is not payable.`,
+        );
       }
 
       const nextInvoiceState = applySupplierPaymentAllocationToInvoice(
@@ -367,11 +425,14 @@ export async function recordSupplierPaymentService(input: RecordSupplierPaymentI
       paymentDate,
       amountMinor,
       currency,
+      currencyMinorUnit,
       method,
       ...(normalizeOptionalText(input.referenceNumber)
         ? { referenceNumber: normalizeOptionalText(input.referenceNumber) }
         : {}),
-      ...(normalizeOptionalText(input.notes) ? { notes: normalizeOptionalText(input.notes) } : {}),
+      ...(normalizeOptionalText(input.notes)
+        ? { notes: normalizeOptionalText(input.notes) }
+        : {}),
       allocations: groupedAllocationsList,
       unallocatedAmountMinor: groupedAllocations.unallocatedMinor,
       status: SupplierPaymentStatus.RECORDED,
@@ -383,7 +444,11 @@ export async function recordSupplierPaymentService(input: RecordSupplierPaymentI
     transaction.set(paymentRef, paymentDoc);
 
     if (idempotencyKey) {
-      const requestRef = doc(db, SUPPLIER_PAYMENT_REQUESTS_COLLECTION, idempotencyKey);
+      const requestRef = doc(
+        db,
+        SUPPLIER_PAYMENT_REQUESTS_COLLECTION,
+        idempotencyKey,
+      );
       transaction.set(requestRef, {
         paymentId: paymentRef.id,
         supplierId,
@@ -410,7 +475,9 @@ export async function getSupplierPaymentByIdService(paymentId: string) {
     throw new Error("Payment id is required.");
   }
 
-  const snapshot = await getDoc(doc(db, SUPPLIER_PAYMENTS_COLLECTION, normalizedPaymentId));
+  const snapshot = await getDoc(
+    doc(db, SUPPLIER_PAYMENTS_COLLECTION, normalizedPaymentId),
+  );
   if (!snapshot.exists()) return null;
 
   return mapSupplierPaymentDocument(
@@ -429,7 +496,9 @@ export async function listSupplierPaymentsBySupplierService(
     dateTo: input.dateTo,
   });
 
-  const constraints: QueryConstraint[] = [where("supplierId", "==", supplierId)];
+  const constraints: QueryConstraint[] = [
+    where("supplierId", "==", supplierId),
+  ];
 
   if (input.status) {
     constraints.push(where("status", "==", input.status));
@@ -456,12 +525,16 @@ export async function listSupplierPaymentsBySupplierService(
   );
 
   const payments = snapshot.docs.map((item) =>
-    mapSupplierPaymentDocument(item.id, item.data() as SupplierPaymentDocumentInternal),
+    mapSupplierPaymentDocument(
+      item.id,
+      item.data() as SupplierPaymentDocumentInternal,
+    ),
   );
 
   const lastDocument = snapshot.docs[snapshot.docs.length - 1];
-  const nextCursorRaw = (lastDocument?.data() as { paymentDate?: unknown } | undefined)
-    ?.paymentDate;
+  const nextCursorRaw = (
+    lastDocument?.data() as { paymentDate?: unknown } | undefined
+  )?.paymentDate;
 
   return {
     payments,
@@ -485,7 +558,11 @@ export async function voidSupplierPaymentService(
   }
 
   await runTransaction(db, async (transaction) => {
-    const paymentRef = doc(db, SUPPLIER_PAYMENTS_COLLECTION, normalizedPaymentId);
+    const paymentRef = doc(
+      db,
+      SUPPLIER_PAYMENTS_COLLECTION,
+      normalizedPaymentId,
+    );
     const paymentSnapshot = await transaction.get(paymentRef);
     if (!paymentSnapshot.exists()) {
       throw new Error("Payment not found.");
@@ -502,19 +579,45 @@ export async function voidSupplierPaymentService(
     const allocations = payment.allocations ?? [];
 
     for (const allocation of allocations) {
-      const invoiceRef = doc(db, PURCHASE_INVOICES_COLLECTION, allocation.invoiceId);
+      const invoiceRef = doc(
+        db,
+        PURCHASE_INVOICES_COLLECTION,
+        allocation.invoiceId,
+      );
       const invoiceSnapshot = await transaction.get(invoiceRef);
       if (!invoiceSnapshot.exists()) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} was not found.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} was not found.`,
+        );
       }
 
-      const invoice = invoiceSnapshot.data() as PurchaseInvoiceFinancialDocument;
+      const invoice =
+        invoiceSnapshot.data() as PurchaseInvoiceFinancialDocument;
       if (invoice.supplierId !== payment.supplierId) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} does not belong to supplier.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} does not belong to supplier.`,
+        );
       }
 
       if (invoice.currency !== payment.currency) {
-        throw new Error(`Allocated invoice ${allocation.invoiceId} currency does not match payment currency.`);
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} currency does not match payment currency.`,
+        );
+      }
+
+      const invoiceCurrencyMinorUnit =
+        typeof invoice.currencyMinorUnit === "number"
+          ? invoice.currencyMinorUnit
+          : resolveCurrencyMinorUnit(invoice.currency);
+      const paymentCurrencyMinorUnit =
+        typeof payment.currencyMinorUnit === "number"
+          ? payment.currencyMinorUnit
+          : resolveCurrencyMinorUnit(payment.currency);
+
+      if (invoiceCurrencyMinorUnit !== paymentCurrencyMinorUnit) {
+        throw new Error(
+          `Allocated invoice ${allocation.invoiceId} currency precision does not match payment currency precision.`,
+        );
       }
 
       if (invoice.status === PurchaseInvoiceStatus.VOID) {

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,7 @@ import {
   type SupplierStatusFilter,
 } from "@/store/supplier/supplier.service";
 import type { Supplier } from "@/types/supplier";
+import { PageSectionHeader } from "@/components/layout/page-section-header";
 
 type SearchField = "name" | "code" | "phone";
 
@@ -118,32 +118,15 @@ export default function VendorsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vendors</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage supplier directory, contacts, and activation status.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => void refreshSuppliers()}
-            aria-label="Refresh vendors"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-          </Button>
-          <Button asChild>
-            <Link href="/vendor/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Add vendor
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageSectionHeader
+        title="Vendors"
+        description="Manage supplier directory, contacts, and activation status."
+        onRefresh={refreshSuppliers}
+        refreshing={refreshing}
+        refreshAriaLabel="Refresh vendors"
+        addHref="/vendor/create"
+        addLabel="Add vendor"
+      />
 
       <div className="rounded-lg border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-12">

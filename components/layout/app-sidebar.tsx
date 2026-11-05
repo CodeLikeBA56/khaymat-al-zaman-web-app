@@ -6,12 +6,19 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  HandCoins,
   LayoutDashboard,
   ReceiptText,
   Users,
   Utensils,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
+import {
+  canViewLink,
+  getEffectivePermissions,
+  isPathEnabled,
+} from "@/config/access-control";
 import { cn } from "@/lib/utils";
 
 const navigationGroups = [
@@ -33,12 +40,22 @@ const navigationGroups = [
         icon: ReceiptText,
         href: "/purchase-invoice",
       },
+      {
+        name: "Supplier Payments",
+        icon: HandCoins,
+        href: "/supplier-payment",
+      },
     ],
   },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const permissions = useMemo(
+    () => getEffectivePermissions(profile),
+    [profile],
+  );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Administration: true,
     Restaurant: true,
@@ -58,6 +75,14 @@ export function AppSidebar() {
           {navigationGroups.map((group) => {
             const GroupIcon = group.icon;
             const isOpen = openGroups[group.name];
+            const permittedLinks = group.links.filter((link) =>
+              canViewLink(link.href, permissions),
+            );
+
+            if (permittedLinks.length === 0) {
+              return null;
+            }
+
             return (
               <div key={group.name}>
                 <button
@@ -79,13 +104,29 @@ export function AppSidebar() {
                   )}
                 </button>
 
-                {isOpen && group.links.length > 0 && (
+                {isOpen && permittedLinks.length > 0 && (
                   <div className="mt-1 space-y-1 pl-4">
-                    {group.links.map((link) => {
+                    {permittedLinks.map((link) => {
                       const Icon = link.icon;
+                      const enabled = isPathEnabled(link.href);
                       const active =
                         pathname === link.href ||
                         pathname.startsWith(`${link.href}/`);
+
+                      if (!enabled) {
+                        return (
+                          <div
+                            key={link.href}
+                            aria-disabled="true"
+                            className="flex cursor-not-allowed items-center gap-2 rounded-md px-3 py-2 text-sm opacity-50"
+                            title="This module is disabled outside production allowlist."
+                          >
+                            <Icon className="h-4 w-4" />
+                            {link.name}
+                          </div>
+                        );
+                      }
+
                       return (
                         <Link
                           key={link.href}

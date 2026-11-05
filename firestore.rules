@@ -136,6 +136,14 @@ service cloud.firestore {
         && request.resource.data.amountMinor is int
         && request.resource.data.amountMinor > 0
         && request.resource.data.currency is string
+        && (
+          !("currencyMinorUnit" in request.resource.data)
+          || (
+            request.resource.data.currencyMinorUnit is int
+            && request.resource.data.currencyMinorUnit >= 0
+            && request.resource.data.currencyMinorUnit <= 6
+          )
+        )
         && isValidSupplierPaymentMethod(request.resource.data.method)
         && request.resource.data.allocations is list
         && request.resource.data.unallocatedAmountMinor is int
@@ -152,6 +160,17 @@ service cloud.firestore {
         && request.resource.data.paymentDate == resource.data.paymentDate
         && request.resource.data.amountMinor == resource.data.amountMinor
         && request.resource.data.currency == resource.data.currency
+        && (
+          (
+            !("currencyMinorUnit" in request.resource.data)
+            && !("currencyMinorUnit" in resource.data)
+          )
+          || (
+            ("currencyMinorUnit" in request.resource.data)
+            && ("currencyMinorUnit" in resource.data)
+            && request.resource.data.currencyMinorUnit == resource.data.currencyMinorUnit
+          )
+        )
         && request.resource.data.method == resource.data.method
         && request.resource.data.allocations == resource.data.allocations
         && request.resource.data.unallocatedAmountMinor == resource.data.unallocatedAmountMinor
@@ -164,6 +183,11 @@ service cloud.firestore {
         && hasProtectedSupplierPaymentIdentityFields()
         && request.resource.data.voidReason is string
         && request.resource.data.voidReason.size() > 0;
+    }
+
+    function hasValidVendorDailyMinimumPaymentField() {
+      return request.resource.data.minimumDailyPaymentSar is number
+        && request.resource.data.minimumDailyPaymentSar >= 0;
     }
 
     match /users/{userId} {
@@ -199,8 +223,10 @@ service cloud.firestore {
 
     match /vendors/{vendorId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin()
+        && hasValidVendorDailyMinimumPaymentField();
       allow update: if isAdmin()
+        && hasValidVendorDailyMinimumPaymentField()
         && request.resource.data.code == resource.data.code
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;

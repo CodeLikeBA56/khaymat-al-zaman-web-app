@@ -30,6 +30,7 @@ type VendorFormState = {
   name: string;
   type: SupplierType;
   phone: string;
+  minimumDailyPaymentSar: string;
   email: string;
   taxNumber: string;
   registrationNumber: string;
@@ -45,6 +46,7 @@ const initialState: VendorFormState = {
   name: "",
   type: SupplierType.COMPANY,
   phone: "",
+  minimumDailyPaymentSar: "0",
   email: "",
   taxNumber: "",
   registrationNumber: "",
@@ -63,6 +65,7 @@ function toFormState(supplier?: Supplier | null): VendorFormState {
     name: supplier.name,
     type: supplier.type,
     phone: supplier.phone,
+    minimumDailyPaymentSar: String(supplier.minimumDailyPaymentSar ?? 0),
     email: supplier.email ?? "",
     taxNumber: supplier.taxNumber ?? "",
     registrationNumber: supplier.registrationNumber ?? "",
@@ -129,6 +132,7 @@ export function VendorForm({
         name: form.name,
         type: form.type,
         phone: form.phone,
+        minimumDailyPaymentSar: Number(form.minimumDailyPaymentSar || "0"),
         email: form.email || undefined,
         taxNumber: form.taxNumber || undefined,
         registrationNumber: form.registrationNumber || undefined,
@@ -230,6 +234,25 @@ export function VendorForm({
               value={form.phone}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, phone: event.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vendor-minimum-daily-payment-sar">
+              Minimum daily payment (SAR)
+            </Label>
+            <Input
+              id="vendor-minimum-daily-payment-sar"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.minimumDailyPaymentSar}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  minimumDailyPaymentSar: event.target.value,
+                }))
               }
             />
           </div>

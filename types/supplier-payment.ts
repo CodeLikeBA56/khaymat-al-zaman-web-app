@@ -32,6 +32,7 @@ export interface SupplierPaymentDocument {
   paymentDate: Timestamp;
   amountMinor: SupplierPaymentMinorAmount;
   currency: string;
+  currencyMinorUnit: number;
   method: SupplierPaymentMethod;
   referenceNumber?: string;
   notes?: string;
@@ -50,10 +51,17 @@ export interface SupplierPayment extends SupplierPaymentDocument {
 
 export type CreateSupplierPaymentInput = Pick<
   SupplierPaymentDocument,
-  "supplierId" | "paymentDate" | "amountMinor" | "currency" | "method"
+  "supplierId" | "paymentDate" | "amountMinor" | "method"
 > &
   Partial<
-    Pick<SupplierPaymentDocument, "referenceNumber" | "notes" | "allocations">
+    Pick<
+      SupplierPaymentDocument,
+      | "currency"
+      | "currencyMinorUnit"
+      | "referenceNumber"
+      | "notes"
+      | "allocations"
+    >
   >;
 
 /**

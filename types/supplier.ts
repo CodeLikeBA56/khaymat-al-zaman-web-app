@@ -19,6 +19,7 @@ export interface SupplierDocument {
   code: string;
   name: string;
   type: SupplierType;
+  minimumDailyPaymentSar: number;
   email?: string;
   phone: string;
   address?: Address;
@@ -33,11 +34,18 @@ export interface Supplier extends SupplierDocument {
   id: string;
 }
 
-export type CreateSupplierInput = Pick<SupplierDocument, "name" | "type" | "phone"> &
+export type CreateSupplierInput = Pick<
+  SupplierDocument,
+  "name" | "type" | "phone"
+> &
   Partial<
     Pick<
       SupplierDocument,
-      "email" | "taxNumber" | "registrationNumber" | "address"
+      | "email"
+      | "taxNumber"
+      | "registrationNumber"
+      | "address"
+      | "minimumDailyPaymentSar"
     >
   >;
 

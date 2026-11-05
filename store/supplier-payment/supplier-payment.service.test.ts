@@ -25,10 +25,19 @@ test("normalizeAmountMinor requires positive integers", () => {
     /positive integer minor amount/,
   );
 
-  assert.equal(__supplierPaymentServiceInternals.normalizeAmountMinor(100), 100);
+  assert.equal(
+    __supplierPaymentServiceInternals.normalizeAmountMinor(100),
+    100,
+  );
 });
 
 test("normalizeIdempotencyKey trims and supports duplicate-request key semantics", () => {
-  assert.equal(__supplierPaymentServiceInternals.normalizeIdempotencyKey(" abc-1 "), "abc-1");
-  assert.equal(__supplierPaymentServiceInternals.normalizeIdempotencyKey("   "), undefined);
+  assert.equal(
+    __supplierPaymentServiceInternals.normalizeIdempotencyKey(" abc-1 "),
+    "abc-1",
+  );
+  assert.equal(
+    __supplierPaymentServiceInternals.normalizeIdempotencyKey("   "),
+    undefined,
+  );
 });

@@ -1,0 +1,2 @@
+export const DEFAULT_CURRENCY_CODE = "SAR";
+export const DEFAULT_CURRENCY_MINOR_UNIT = 2;

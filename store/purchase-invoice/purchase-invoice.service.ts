@@ -32,6 +32,10 @@ import {
   validateLineItems,
 } from "@/lib/purchase-invoice";
 import {
+  DEFAULT_CURRENCY_CODE,
+  DEFAULT_CURRENCY_MINOR_UNIT,
+} from "@/config/currency";
+import {
   getSupplierByIdService,
   type ListSuppliersPageInput,
   listSuppliersPageService,
@@ -322,9 +326,9 @@ export async function createPurchaseInvoiceDraftService(
   }
 
   const lines = normalizeLines(input.lines);
-  const currency = normalizeCurrencyCode(input.currency);
+  const currency = normalizeCurrencyCode(DEFAULT_CURRENCY_CODE);
   const currencyMinorUnit = validateCurrencyMinorUnit(
-    input.currencyMinorUnit ?? 2,
+    DEFAULT_CURRENCY_MINOR_UNIT,
   );
 
   const totals = calculateInvoiceTotals({
@@ -502,15 +506,11 @@ export async function updateDraftPurchaseInvoiceService(
 
   const nextLines =
     input.lines !== undefined ? normalizeLines(input.lines) : current.lines;
-  const nextCurrency =
-    input.currency !== undefined
-      ? normalizeCurrencyCode(input.currency)
-      : current.currency;
+  const nextCurrency = normalizeCurrencyCode(DEFAULT_CURRENCY_CODE);
 
-  const nextCurrencyMinorUnit =
-    input.currencyMinorUnit !== undefined
-      ? validateCurrencyMinorUnit(input.currencyMinorUnit)
-      : current.currencyMinorUnit;
+  const nextCurrencyMinorUnit = validateCurrencyMinorUnit(
+    DEFAULT_CURRENCY_MINOR_UNIT,
+  );
 
   const totals = calculateInvoiceTotals({
     lines: nextLines,

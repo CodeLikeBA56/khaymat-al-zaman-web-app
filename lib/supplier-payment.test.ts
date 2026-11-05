@@ -102,5 +102,8 @@ test("normalize/format payment numbers and void guard", () => {
     PurchaseInvoiceStatus.POSTED,
   );
 
-  assert.throws(() => assertSupplierPaymentVoidable("VOID" as never), /recorded payments/);
+  assert.throws(
+    () => assertSupplierPaymentVoidable("VOID" as never),
+    /recorded payments/,
+  );
 });

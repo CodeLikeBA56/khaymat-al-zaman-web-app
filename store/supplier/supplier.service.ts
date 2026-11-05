@@ -60,6 +60,16 @@ export type SuppliersPage = {
   nextCursor: string | null;
 };
 
+function normalizeMinimumDailyPaymentSar(value: number | undefined) {
+  if (value === undefined) return 0;
+
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Minimum daily payment must be a non-negative number.");
+  }
+
+  return Number(value.toFixed(2));
+}
+
 function toSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
@@ -107,7 +117,11 @@ function normalizeOptionalAddress(address?: Partial<Address>) {
     return undefined;
   }
 
-  if (!address.line1?.trim() || !address.city?.trim() || !address.country?.trim()) {
+  if (
+    !address.line1?.trim() ||
+    !address.city?.trim() ||
+    !address.country?.trim()
+  ) {
     throw new Error(
       "When address is provided, line 1, city, and country are required.",
     );
@@ -136,6 +150,9 @@ function normalizeCreateInput(input: CreateSupplierInput) {
     name,
     type: input.type,
     phone,
+    minimumDailyPaymentSar: normalizeMinimumDailyPaymentSar(
+      input.minimumDailyPaymentSar,
+    ),
     address: normalizeOptionalAddress(input.address),
     email: input.email?.trim() || undefined,
     taxNumber: input.taxNumber?.trim() || undefined,
@@ -176,6 +193,10 @@ function mapSupplierDocument(
     code: data.code,
     name: data.name,
     type: data.type,
+    minimumDailyPaymentSar:
+      typeof data.minimumDailyPaymentSar === "number"
+        ? data.minimumDailyPaymentSar
+        : 0,
     email: data.email,
     phone: data.phone,
     address: data.address,
@@ -208,7 +229,9 @@ function resolveSearchField(search?: SearchInput) {
   return "phoneSearch";
 }
 
-function resolveStatusFilter(input: ListSuppliersPageInput): SupplierStatusFilter {
+function resolveStatusFilter(
+  input: ListSuppliersPageInput,
+): SupplierStatusFilter {
   if (input.status) {
     if (!["active", "inactive", "all"].includes(input.status)) {
       throw new Error("Supplier status filter is invalid.");
@@ -289,6 +312,7 @@ export async function createSupplierService(input: CreateSupplierInput) {
     code,
     name: normalized.name,
     type: normalized.type,
+    minimumDailyPaymentSar: normalized.minimumDailyPaymentSar,
     phone: normalized.phone,
     ...(normalized.address ? { address: normalized.address } : {}),
     ...(normalized.email ? { email: normalized.email } : {}),
@@ -450,6 +474,12 @@ export async function updateSupplierService(
     payload.phoneSearch = toSearchValue(phone);
   }
 
+  if (input.minimumDailyPaymentSar !== undefined) {
+    payload.minimumDailyPaymentSar = normalizeMinimumDailyPaymentSar(
+      input.minimumDailyPaymentSar,
+    );
+  }
+
   if (input.address !== undefined) {
     const normalizedAddress = normalizeOptionalAddress(input.address);
     if (normalizedAddress) {
@@ -484,6 +514,32 @@ export async function activateSupplierService(supplierId: string) {
 
 export async function deactivateSupplierService(supplierId: string) {
   await setSupplierActivationStateService(supplierId, false);
+}
+
+export async function getTotalActiveVendorsDailyMinimumExpenseService() {
+  let total = 0;
+  let cursor: string | null = null;
+
+  while (true) {
+    const page = await listSuppliersPageService({
+      status: "active",
+      pageSize: 100,
+      ...(cursor ? { cursor } : {}),
+    });
+
+    total += page.suppliers.reduce(
+      (sum, supplier) => sum + (supplier.minimumDailyPaymentSar || 0),
+      0,
+    );
+
+    if (!page.hasMore || !page.nextCursor) {
+      break;
+    }
+
+    cursor = page.nextCursor;
+  }
+
+  return Number(total.toFixed(2));
 }
 
 export const __supplierServiceInternals = {

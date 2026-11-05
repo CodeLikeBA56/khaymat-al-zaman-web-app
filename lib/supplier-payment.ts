@@ -50,13 +50,19 @@ export function normalizePaymentAllocations(
       throw new Error(`Allocation ${index + 1} invoice id is required.`);
     }
 
-    if (!Number.isInteger(allocation.amountMinor) || allocation.amountMinor <= 0) {
+    if (
+      !Number.isInteger(allocation.amountMinor) ||
+      allocation.amountMinor <= 0
+    ) {
       throw new Error(
         `Allocation ${index + 1} amount must be a positive integer minor amount.`,
       );
     }
 
-    grouped.set(invoiceId, (grouped.get(invoiceId) ?? 0) + allocation.amountMinor);
+    grouped.set(
+      invoiceId,
+      (grouped.get(invoiceId) ?? 0) + allocation.amountMinor,
+    );
   }
 
   return Array.from(grouped.entries()).map(([invoiceId, amountMinor]) => ({
@@ -74,7 +80,10 @@ export function summarizeSupplierPaymentAllocations(input: {
   }
 
   const allocations = normalizePaymentAllocations(input.allocations);
-  const allocatedMinor = allocations.reduce((sum, item) => sum + item.amountMinor, 0);
+  const allocatedMinor = allocations.reduce(
+    (sum, item) => sum + item.amountMinor,
+    0,
+  );
 
   if (allocatedMinor > input.amountMinor) {
     throw new Error("Allocated amount cannot exceed payment amount.");
@@ -109,11 +118,15 @@ export function applySupplierPaymentAllocationToInvoice(
     invoice.status !== PurchaseInvoiceStatus.POSTED &&
     invoice.status !== PurchaseInvoiceStatus.PARTIALLY_PAID
   ) {
-    throw new Error("Only posted and partially paid invoices can receive allocations.");
+    throw new Error(
+      "Only posted and partially paid invoices can receive allocations.",
+    );
   }
 
   if (!Number.isInteger(allocationAmountMinor) || allocationAmountMinor <= 0) {
-    throw new Error("Allocation amount must be a positive integer minor amount.");
+    throw new Error(
+      "Allocation amount must be a positive integer minor amount.",
+    );
   }
 
   if (allocationAmountMinor > invoice.remainingPayableMinor) {
@@ -121,7 +134,8 @@ export function applySupplierPaymentAllocationToInvoice(
   }
 
   const paidAmountMinor = invoice.paidAmountMinor + allocationAmountMinor;
-  const remainingPayableMinor = invoice.remainingPayableMinor - allocationAmountMinor;
+  const remainingPayableMinor =
+    invoice.remainingPayableMinor - allocationAmountMinor;
 
   return {
     ...invoice,
@@ -136,7 +150,9 @@ export function reverseSupplierPaymentAllocationFromInvoice(
   allocationAmountMinor: number,
 ): PayableInvoiceFinancialState {
   if (!Number.isInteger(allocationAmountMinor) || allocationAmountMinor <= 0) {
-    throw new Error("Allocation amount must be a positive integer minor amount.");
+    throw new Error(
+      "Allocation amount must be a positive integer minor amount.",
+    );
   }
 
   if (allocationAmountMinor > invoice.paidAmountMinor) {
@@ -144,7 +160,8 @@ export function reverseSupplierPaymentAllocationFromInvoice(
   }
 
   const paidAmountMinor = invoice.paidAmountMinor - allocationAmountMinor;
-  const remainingPayableMinor = invoice.remainingPayableMinor + allocationAmountMinor;
+  const remainingPayableMinor =
+    invoice.remainingPayableMinor + allocationAmountMinor;
 
   if (paidAmountMinor + remainingPayableMinor !== invoice.grandTotalMinor) {
     throw new Error("Invoice financial state is inconsistent for reversal.");
