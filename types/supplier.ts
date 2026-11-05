@@ -19,7 +19,10 @@ export interface SupplierDocument {
   code: string;
   name: string;
   type: SupplierType;
-  minimumDailyPaymentSar: number;
+  dailyPaymentLimit: {
+    min: number;
+    max: number;
+  };
   email?: string;
   phone: string;
   address?: Address;
@@ -45,7 +48,7 @@ export type CreateSupplierInput = Pick<
       | "taxNumber"
       | "registrationNumber"
       | "address"
-      | "minimumDailyPaymentSar"
+      | "dailyPaymentLimit"
     >
   >;
 

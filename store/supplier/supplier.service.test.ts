@@ -12,13 +12,6 @@ test("resolveStatusFilter defaults to active", () => {
   assert.equal(status, "active");
 });
 
-test("resolveStatusFilter keeps backward compatibility with includeInactive", () => {
-  const input: ListSuppliersPageInput = { includeInactive: true };
-  const status = __supplierServiceInternals.resolveStatusFilter(input);
-
-  assert.equal(status, "all");
-});
-
 test("resolveStatusFilter supports inactive-only filtering", () => {
   const input: ListSuppliersPageInput = { status: "inactive" };
   const status = __supplierServiceInternals.resolveStatusFilter(input);

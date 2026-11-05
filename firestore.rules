@@ -185,9 +185,14 @@ service cloud.firestore {
         && request.resource.data.voidReason.size() > 0;
     }
 
-    function hasValidVendorDailyMinimumPaymentField() {
-      return request.resource.data.minimumDailyPaymentSar is number
-        && request.resource.data.minimumDailyPaymentSar >= 0;
+    function hasValidVendorDailyPaymentLimitField() {
+      return request.resource.data.dailyPaymentLimit is map
+        && request.resource.data.dailyPaymentLimit.min is number
+        && request.resource.data.dailyPaymentLimit.min >= 0
+        && request.resource.data.dailyPaymentLimit.max is number
+        && request.resource.data.dailyPaymentLimit.max >= 0
+        && request.resource.data.dailyPaymentLimit.max
+          >= request.resource.data.dailyPaymentLimit.min;
     }
 
     match /users/{userId} {
@@ -224,9 +229,9 @@ service cloud.firestore {
     match /vendors/{vendorId} {
       allow read: if isAdmin();
       allow create: if isAdmin()
-        && hasValidVendorDailyMinimumPaymentField();
+        && hasValidVendorDailyPaymentLimitField();
       allow update: if isAdmin()
-        && hasValidVendorDailyMinimumPaymentField()
+        && hasValidVendorDailyPaymentLimitField()
         && request.resource.data.code == resource.data.code
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;

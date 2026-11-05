@@ -48,7 +48,6 @@ export type ListSuppliersPageInput = {
   pageSize?: number;
   cursor?: string | null;
   status?: SupplierStatusFilter;
-  includeInactive?: boolean;
   type?: SupplierType;
   country?: string;
   search?: SearchInput;
@@ -60,14 +59,35 @@ export type SuppliersPage = {
   nextCursor: string | null;
 };
 
-function normalizeMinimumDailyPaymentSar(value: number | undefined) {
-  if (value === undefined) return 0;
-
+function normalizePaymentLimitValue(value: number, fieldName: string) {
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Minimum daily payment must be a non-negative number.");
+    throw new Error(`${fieldName} must be a non-negative number.`);
   }
 
   return Number(value.toFixed(2));
+}
+
+function normalizeDailyPaymentLimit(
+  input: CreateSupplierInput["dailyPaymentLimit"] | undefined,
+) {
+  if (!input) {
+    return {
+      min: 0,
+      max: 0,
+    };
+  }
+
+  const min = normalizePaymentLimitValue(input.min, "Daily minimum payment");
+  const max = normalizePaymentLimitValue(input.max, "Daily maximum payment");
+
+  if (max < min) {
+    throw new Error("Daily maximum payment cannot be less than daily minimum payment.");
+  }
+
+  return {
+    min,
+    max,
+  };
 }
 
 function toSearchValue(value: string) {
@@ -150,9 +170,7 @@ function normalizeCreateInput(input: CreateSupplierInput) {
     name,
     type: input.type,
     phone,
-    minimumDailyPaymentSar: normalizeMinimumDailyPaymentSar(
-      input.minimumDailyPaymentSar,
-    ),
+    dailyPaymentLimit: normalizeDailyPaymentLimit(input.dailyPaymentLimit),
     address: normalizeOptionalAddress(input.address),
     email: input.email?.trim() || undefined,
     taxNumber: input.taxNumber?.trim() || undefined,
@@ -193,10 +211,24 @@ function mapSupplierDocument(
     code: data.code,
     name: data.name,
     type: data.type,
-    minimumDailyPaymentSar:
-      typeof data.minimumDailyPaymentSar === "number"
-        ? data.minimumDailyPaymentSar
-        : 0,
+    dailyPaymentLimit:
+      data.dailyPaymentLimit &&
+      typeof data.dailyPaymentLimit.min === "number" &&
+      typeof data.dailyPaymentLimit.max === "number"
+        ? {
+            min: normalizePaymentLimitValue(
+              data.dailyPaymentLimit.min,
+              "Daily minimum payment",
+            ),
+            max: normalizePaymentLimitValue(
+              data.dailyPaymentLimit.max,
+              "Daily maximum payment",
+            ),
+          }
+        : {
+            min: 0,
+            max: 0,
+          },
     email: data.email,
     phone: data.phone,
     address: data.address,
@@ -240,8 +272,7 @@ function resolveStatusFilter(
     return input.status;
   }
 
-  // Backward compatibility with older callers.
-  return input.includeInactive ? "all" : "active";
+  return "active";
 }
 
 function formatSupplierCode(sequenceNumber: number) {
@@ -312,7 +343,7 @@ export async function createSupplierService(input: CreateSupplierInput) {
     code,
     name: normalized.name,
     type: normalized.type,
-    minimumDailyPaymentSar: normalized.minimumDailyPaymentSar,
+    dailyPaymentLimit: normalized.dailyPaymentLimit,
     phone: normalized.phone,
     ...(normalized.address ? { address: normalized.address } : {}),
     ...(normalized.email ? { email: normalized.email } : {}),
@@ -474,10 +505,8 @@ export async function updateSupplierService(
     payload.phoneSearch = toSearchValue(phone);
   }
 
-  if (input.minimumDailyPaymentSar !== undefined) {
-    payload.minimumDailyPaymentSar = normalizeMinimumDailyPaymentSar(
-      input.minimumDailyPaymentSar,
-    );
+  if (input.dailyPaymentLimit !== undefined) {
+    payload.dailyPaymentLimit = normalizeDailyPaymentLimit(input.dailyPaymentLimit);
   }
 
   if (input.address !== undefined) {
@@ -516,8 +545,9 @@ export async function deactivateSupplierService(supplierId: string) {
   await setSupplierActivationStateService(supplierId, false);
 }
 
-export async function getTotalActiveVendorsDailyMinimumExpenseService() {
-  let total = 0;
+export async function getTotalActiveVendorsDailyPaymentRangeService() {
+  let totalMin = 0;
+  let totalMax = 0;
   let cursor: string | null = null;
 
   while (true) {
@@ -527,8 +557,12 @@ export async function getTotalActiveVendorsDailyMinimumExpenseService() {
       ...(cursor ? { cursor } : {}),
     });
 
-    total += page.suppliers.reduce(
-      (sum, supplier) => sum + (supplier.minimumDailyPaymentSar || 0),
+    totalMin += page.suppliers.reduce(
+      (sum, supplier) => sum + (supplier.dailyPaymentLimit?.min || 0),
+      0,
+    );
+    totalMax += page.suppliers.reduce(
+      (sum, supplier) => sum + (supplier.dailyPaymentLimit?.max || 0),
       0,
     );
 
@@ -539,7 +573,10 @@ export async function getTotalActiveVendorsDailyMinimumExpenseService() {
     cursor = page.nextCursor;
   }
 
-  return Number(total.toFixed(2));
+  return {
+    min: Number(totalMin.toFixed(2)),
+    max: Number(totalMax.toFixed(2)),
+  };
 }
 
 export const __supplierServiceInternals = {

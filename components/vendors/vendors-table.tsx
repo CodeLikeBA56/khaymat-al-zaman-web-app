@@ -92,9 +92,18 @@ export function VendorsTable({
         ),
       },
       {
-        id: "minimumDailyPaymentSar",
-        header: "Min Daily",
-        cell: ({ row }) => formatSar(row.original.minimumDailyPaymentSar ?? 0),
+        id: "dailyPaymentLimit",
+        header: "Daily limit",
+        cell: ({ row }) => {
+          const min = row.original.dailyPaymentLimit?.min ?? 0;
+          const max = row.original.dailyPaymentLimit?.max ?? 0;
+
+          return (
+            <span>
+              {formatSar(min)} - {formatSar(max)}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "isActive",

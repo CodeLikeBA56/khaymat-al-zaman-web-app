@@ -30,7 +30,8 @@ type VendorFormState = {
   name: string;
   type: SupplierType;
   phone: string;
-  minimumDailyPaymentSar: string;
+  dailyPaymentLimitMin: string;
+  dailyPaymentLimitMax: string;
   email: string;
   taxNumber: string;
   registrationNumber: string;
@@ -46,7 +47,8 @@ const initialState: VendorFormState = {
   name: "",
   type: SupplierType.COMPANY,
   phone: "",
-  minimumDailyPaymentSar: "0",
+  dailyPaymentLimitMin: "0",
+  dailyPaymentLimitMax: "0",
   email: "",
   taxNumber: "",
   registrationNumber: "",
@@ -65,7 +67,8 @@ function toFormState(supplier?: Supplier | null): VendorFormState {
     name: supplier.name,
     type: supplier.type,
     phone: supplier.phone,
-    minimumDailyPaymentSar: String(supplier.minimumDailyPaymentSar ?? 0),
+    dailyPaymentLimitMin: String(supplier.dailyPaymentLimit?.min ?? 0),
+    dailyPaymentLimitMax: String(supplier.dailyPaymentLimit?.max ?? 0),
     email: supplier.email ?? "",
     taxNumber: supplier.taxNumber ?? "",
     registrationNumber: supplier.registrationNumber ?? "",
@@ -132,7 +135,10 @@ export function VendorForm({
         name: form.name,
         type: form.type,
         phone: form.phone,
-        minimumDailyPaymentSar: Number(form.minimumDailyPaymentSar || "0"),
+        dailyPaymentLimit: {
+          min: Number(form.dailyPaymentLimitMin || "0"),
+          max: Number(form.dailyPaymentLimitMax || "0"),
+        },
         email: form.email || undefined,
         taxNumber: form.taxNumber || undefined,
         registrationNumber: form.registrationNumber || undefined,
@@ -239,25 +245,6 @@ export function VendorForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vendor-minimum-daily-payment-sar">
-              Minimum daily payment (SAR)
-            </Label>
-            <Input
-              id="vendor-minimum-daily-payment-sar"
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.minimumDailyPaymentSar}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  minimumDailyPaymentSar: event.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="vendor-email">Email</Label>
             <Input
               id="vendor-email"
@@ -291,6 +278,51 @@ export function VendorForm({
                 setForm((prev) => ({
                   ...prev,
                   registrationNumber: event.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Payment commitment limits
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Define expected daily payment floor and ceiling in SAR for forecasting.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="vendor-daily-payment-min">Daily minimum (SAR)</Label>
+            <Input
+              id="vendor-daily-payment-min"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.dailyPaymentLimitMin}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  dailyPaymentLimitMin: event.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vendor-daily-payment-max">Daily maximum (SAR)</Label>
+            <Input
+              id="vendor-daily-payment-max"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.dailyPaymentLimitMax}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  dailyPaymentLimitMax: event.target.value,
                 }))
               }
             />

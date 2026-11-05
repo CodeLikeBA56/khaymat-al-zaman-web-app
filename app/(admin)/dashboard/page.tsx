@@ -9,7 +9,7 @@ import { buildSalaryDetailsRows, sumRemainingSalaries } from "@/lib/dashboard";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchEmployees } from "@/store/employee/employee.reducer";
 import { fetchAllOutstandingSalaryPeriodsService } from "@/store/finance/finance.service";
-import { getTotalActiveVendorsDailyMinimumExpenseService } from "@/store/supplier/supplier.service";
+import { getTotalActiveVendorsDailyPaymentRangeService } from "@/store/supplier/supplier.service";
 import { StatsCard } from "@/components/dashboard/stats-card";
 
 export default function DashboardPage() {
@@ -18,8 +18,8 @@ export default function DashboardPage() {
   const [outstandingSalaryPeriods, setOutstandingSalaryPeriods] = useState<
     SalaryPeriod[]
   >([]);
-  const [totalExpectedVendorDailyExpense, setTotalExpectedVendorDailyExpense] =
-    useState(0);
+  const [totalExpectedVendorDailyExpenseRange, setTotalExpectedVendorDailyExpenseRange] =
+    useState({ min: 0, max: 0 });
   const { employees, isLoading } = useAppSelector((state) => state.employee);
 
   useEffect(() => {
@@ -39,8 +39,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadExpectedVendorExpense() {
-      const total = await getTotalActiveVendorsDailyMinimumExpenseService();
-      setTotalExpectedVendorDailyExpense(total);
+      const total = await getTotalActiveVendorsDailyPaymentRangeService();
+      setTotalExpectedVendorDailyExpenseRange(total);
     }
 
     void loadExpectedVendorExpense();
@@ -77,8 +77,8 @@ export default function DashboardPage() {
         <StatsCard
           icon={Coins}
           title="Expected Daily Vendor Expense"
-          description="Minimum daily payable amount for all active vendors."
-          value={formatCurrency(totalExpectedVendorDailyExpense)}
+          description="Combined minimum-to-maximum daily payable range for active vendors."
+          value={`${formatCurrency(totalExpectedVendorDailyExpenseRange.min)} - ${formatCurrency(totalExpectedVendorDailyExpenseRange.max)}`}
         />
       </div>
     </section>
