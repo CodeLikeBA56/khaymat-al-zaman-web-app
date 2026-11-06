@@ -52,10 +52,7 @@ const navigationGroups = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { profile } = useAuth();
-  const permissions = useMemo(
-    () => getEffectivePermissions(profile),
-    [profile],
-  );
+  const permissions = useMemo(() => getEffectivePermissions(profile), [profile]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Administration: true,
     Restaurant: true,
