@@ -97,11 +97,12 @@ export function isModuleEnabled(module: ModuleKey) {
 function getRouteRule(pathname: string) {
   const normalizedPath = pathname.trim();
 
-  return NAVIGATION_PERMISSIONS.filter(
-    (rule) =>
+  return NAVIGATION_PERMISSIONS
+    .filter((rule) =>
       normalizedPath === rule.pathPrefix ||
       normalizedPath.startsWith(`${rule.pathPrefix}/`),
-  ).sort((a, b) => b.pathPrefix.length - a.pathPrefix.length)[0];
+    )
+    .sort((a, b) => b.pathPrefix.length - a.pathPrefix.length)[0];
 }
 
 export function isPathEnabled(pathname: string) {
@@ -131,10 +132,7 @@ export function canViewLink(pathname: string, permissions: Permission[]) {
 
 export function getFirstAccessiblePath(permissions: Permission[]) {
   for (const rule of NAVIGATION_PERMISSIONS) {
-    if (
-      isModuleEnabled(rule.module) &&
-      hasPermission(permissions, rule.permission)
-    ) {
+    if (isModuleEnabled(rule.module) && hasPermission(permissions, rule.permission)) {
       return rule.pathPrefix;
     }
   }
