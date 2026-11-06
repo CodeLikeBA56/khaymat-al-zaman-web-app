@@ -27,8 +27,8 @@ import type {
 } from "@/types/supplier";
 import { SupplierType } from "@/types/supplier";
 
-const VENDORS_COLLECTION = "vendors";
 const META_COLLECTION = "meta";
+const VENDORS_COLLECTION = "vendors";
 const SUPPLIER_CODE_COUNTER_DOCUMENT_ID = "vendorCodeCounter";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -48,7 +48,6 @@ export type ListSuppliersPageInput = {
   pageSize?: number;
   cursor?: string | null;
   status?: SupplierStatusFilter;
-  includeInactive?: boolean;
   type?: SupplierType;
   country?: string;
   search?: SearchInput;
@@ -59,6 +58,62 @@ export type SuppliersPage = {
   hasMore: boolean;
   nextCursor: string | null;
 };
+
+function toSerializableDate(value: unknown): unknown {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value &&
+    typeof (value as { seconds?: unknown }).seconds === "number"
+  ) {
+    const millis = (value as { seconds: number }).seconds * 1000;
+    return new Date(millis).toISOString();
+  }
+
+  return value;
+}
+
+function normalizePaymentLimitValue(value: number, fieldName: string) {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative number.`);
+  }
+
+  return Number(value.toFixed(2));
+}
+
+function normalizeDailyPaymentLimit(
+  input: CreateSupplierInput["dailyPaymentLimit"] | undefined,
+) {
+  if (!input) {
+    return {
+      min: 0,
+      max: 0,
+    };
+  }
+
+  const min = normalizePaymentLimitValue(input.min, "Daily minimum payment");
+  const max = normalizePaymentLimitValue(input.max, "Daily maximum payment");
+
+  if (max < min) {
+    throw new Error(
+      "Daily maximum payment cannot be less than daily minimum payment.",
+    );
+  }
+
+  return {
+    min,
+    max,
+  };
+}
 
 function toSearchValue(value: string) {
   return value.trim().toLowerCase();
@@ -107,7 +162,11 @@ function normalizeOptionalAddress(address?: Partial<Address>) {
     return undefined;
   }
 
-  if (!address.line1?.trim() || !address.city?.trim() || !address.country?.trim()) {
+  if (
+    !address.line1?.trim() ||
+    !address.city?.trim() ||
+    !address.country?.trim()
+  ) {
     throw new Error(
       "When address is provided, line 1, city, and country are required.",
     );
@@ -136,6 +195,7 @@ function normalizeCreateInput(input: CreateSupplierInput) {
     name,
     type: input.type,
     phone,
+    dailyPaymentLimit: normalizeDailyPaymentLimit(input.dailyPaymentLimit),
     address: normalizeOptionalAddress(input.address),
     email: input.email?.trim() || undefined,
     taxNumber: input.taxNumber?.trim() || undefined,
@@ -176,14 +236,32 @@ function mapSupplierDocument(
     code: data.code,
     name: data.name,
     type: data.type,
+    dailyPaymentLimit:
+      data.dailyPaymentLimit &&
+      typeof data.dailyPaymentLimit.min === "number" &&
+      typeof data.dailyPaymentLimit.max === "number"
+        ? {
+            min: normalizePaymentLimitValue(
+              data.dailyPaymentLimit.min,
+              "Daily minimum payment",
+            ),
+            max: normalizePaymentLimitValue(
+              data.dailyPaymentLimit.max,
+              "Daily maximum payment",
+            ),
+          }
+        : {
+            min: 0,
+            max: 0,
+          },
     email: data.email,
     phone: data.phone,
     address: data.address,
     taxNumber: data.taxNumber,
     registrationNumber: data.registrationNumber,
     isActive: data.isActive,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
+    createdAt: toSerializableDate(data.createdAt),
+    updatedAt: toSerializableDate(data.updatedAt),
   };
 }
 
@@ -208,7 +286,9 @@ function resolveSearchField(search?: SearchInput) {
   return "phoneSearch";
 }
 
-function resolveStatusFilter(input: ListSuppliersPageInput): SupplierStatusFilter {
+function resolveStatusFilter(
+  input: ListSuppliersPageInput,
+): SupplierStatusFilter {
   if (input.status) {
     if (!["active", "inactive", "all"].includes(input.status)) {
       throw new Error("Supplier status filter is invalid.");
@@ -217,8 +297,7 @@ function resolveStatusFilter(input: ListSuppliersPageInput): SupplierStatusFilte
     return input.status;
   }
 
-  // Backward compatibility with older callers.
-  return input.includeInactive ? "all" : "active";
+  return "active";
 }
 
 function formatSupplierCode(sequenceNumber: number) {
@@ -289,6 +368,7 @@ export async function createSupplierService(input: CreateSupplierInput) {
     code,
     name: normalized.name,
     type: normalized.type,
+    dailyPaymentLimit: normalized.dailyPaymentLimit,
     phone: normalized.phone,
     ...(normalized.address ? { address: normalized.address } : {}),
     ...(normalized.email ? { email: normalized.email } : {}),
@@ -450,6 +530,12 @@ export async function updateSupplierService(
     payload.phoneSearch = toSearchValue(phone);
   }
 
+  if (input.dailyPaymentLimit !== undefined) {
+    payload.dailyPaymentLimit = normalizeDailyPaymentLimit(
+      input.dailyPaymentLimit,
+    );
+  }
+
   if (input.address !== undefined) {
     const normalizedAddress = normalizeOptionalAddress(input.address);
     if (normalizedAddress) {
@@ -484,6 +570,40 @@ export async function activateSupplierService(supplierId: string) {
 
 export async function deactivateSupplierService(supplierId: string) {
   await setSupplierActivationStateService(supplierId, false);
+}
+
+export async function getTotalActiveVendorsDailyPaymentRangeService() {
+  let totalMin = 0;
+  let totalMax = 0;
+  let cursor: string | null = null;
+
+  while (true) {
+    const page = await listSuppliersPageService({
+      status: "active",
+      pageSize: 100,
+      ...(cursor ? { cursor } : {}),
+    });
+
+    totalMin += page.suppliers.reduce(
+      (sum, supplier) => sum + (supplier.dailyPaymentLimit?.min || 0),
+      0,
+    );
+    totalMax += page.suppliers.reduce(
+      (sum, supplier) => sum + (supplier.dailyPaymentLimit?.max || 0),
+      0,
+    );
+
+    if (!page.hasMore || !page.nextCursor) {
+      break;
+    }
+
+    cursor = page.nextCursor;
+  }
+
+  return {
+    min: Number(totalMin.toFixed(2)),
+    max: Number(totalMax.toFixed(2)),
+  };
 }
 
 export const __supplierServiceInternals = {

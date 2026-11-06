@@ -26,6 +26,14 @@ import {
 } from "@/components/ui/table";
 import type { Supplier } from "@/types/supplier";
 
+function formatSar(amount: number) {
+  return new Intl.NumberFormat("en-SA", {
+    style: "currency",
+    currency: "SAR",
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 type VendorsTableProps = {
   data: Supplier[];
   busySupplierId?: string | null;
@@ -84,6 +92,20 @@ export function VendorsTable({
         ),
       },
       {
+        id: "dailyPaymentLimit",
+        header: "Daily limit",
+        cell: ({ row }) => {
+          const min = row.original.dailyPaymentLimit?.min ?? 0;
+          const max = row.original.dailyPaymentLimit?.max ?? 0;
+
+          return (
+            <span>
+              {formatSar(min)} - {formatSar(max)}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => (
@@ -100,7 +122,11 @@ export function VendorsTable({
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isBusy}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isBusy}
+                >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -164,7 +190,10 @@ export function VendorsTable({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell
+                colSpan={columns.length}
+                className="h-24 text-center"
+              >
                 No vendors found.
               </TableCell>
             </TableRow>

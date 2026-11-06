@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,94 +16,88 @@ import {
 import { VendorsTable } from "@/components/vendors/vendors-table";
 import { VendorFormDialog } from "@/components/vendors/vendor-form-dialog";
 import {
-  activateSupplierService,
-  deactivateSupplierService,
-  listSuppliersPageService,
-  type ListSuppliersPageInput,
-  type SupplierStatusFilter,
-} from "@/store/supplier/supplier.service";
+  fetchSuppliers,
+  setSupplierActivation,
+} from "@/store/supplier/supplier.reducer";
 import type { Supplier } from "@/types/supplier";
+import { PageSectionHeader } from "@/components/layout/page-section-header";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
 type SearchField = "name" | "code" | "phone";
+type SupplierStatusFilter = "active" | "inactive" | "all";
 
 export default function VendorsPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { suppliers, isLoading, error } = useAppSelector(
+    (state) => state.supplier,
+  );
+
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<SupplierStatusFilter>("active");
   const [searchField, setSearchField] = useState<SearchField>("name");
   const [searchText, setSearchText] = useState("");
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [appliedStatus, setAppliedStatus] = useState<SupplierStatusFilter>(
+    "active",
+  );
+  const [appliedSearchField, setAppliedSearchField] =
+    useState<SearchField>("name");
+  const [appliedSearchText, setAppliedSearchText] = useState("");
   const [savingSupplierId, setSavingSupplierId] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
-  const loadSuppliers = useCallback(
-    async ({ reset }: { reset: boolean }) => {
-      setError(null);
-      if (reset) {
-        setLoading(true);
-      }
-
-      const input: ListSuppliersPageInput = {
-        status,
-        pageSize: 20,
-      };
-
-      if (searchText.trim()) {
-        input.search = {
-          field: searchField,
-          text: searchText,
-        };
-      }
-
-      if (!reset && nextCursor) {
-        input.cursor = nextCursor;
-      }
-
-      try {
-        const page = await listSuppliersPageService(input);
-        setSuppliers((prev) =>
-          reset ? page.suppliers : [...prev, ...page.suppliers],
-        );
-        setNextCursor(page.nextCursor);
-        setHasMore(page.hasMore && Boolean(page.nextCursor));
-      } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Could not load vendors.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [nextCursor, searchField, searchText, status],
-  );
-
   useEffect(() => {
-    void loadSuppliers({ reset: true });
-  }, [loadSuppliers]);
+    void dispatch(fetchSuppliers());
+  }, [dispatch]);
 
   async function refreshSuppliers() {
     setRefreshing(true);
-    await loadSuppliers({ reset: true });
-    setRefreshing(false);
+    try {
+      await dispatch(fetchSuppliers({ force: true })).unwrap();
+    } finally {
+      setRefreshing(false);
+    }
   }
+
+  function applyFilters() {
+    setAppliedStatus(status);
+    setAppliedSearchField(searchField);
+    setAppliedSearchText(searchText);
+  }
+
+  const filteredSuppliers = useMemo(() => {
+    const normalizedSearchText = appliedSearchText.trim().toLowerCase();
+
+    return suppliers.filter((supplier) => {
+      if (appliedStatus === "active" && !supplier.isActive) return false;
+      if (appliedStatus === "inactive" && supplier.isActive) return false;
+
+      if (!normalizedSearchText) return true;
+
+      if (appliedSearchField === "name") {
+        return supplier.name.toLowerCase().startsWith(normalizedSearchText);
+      }
+
+      if (appliedSearchField === "code") {
+        return supplier.code.toLowerCase().startsWith(normalizedSearchText);
+      }
+
+      return supplier.phone.toLowerCase().startsWith(normalizedSearchText);
+    });
+  }, [appliedSearchField, appliedSearchText, appliedStatus, suppliers]);
+
+  const loading = isLoading && suppliers.length === 0;
 
   async function changeActivation(supplier: Supplier, nextActive: boolean) {
     setSavingSupplierId(supplier.id);
     try {
-      if (nextActive) {
-        await activateSupplierService(supplier.id);
-        toast.success("Vendor activated.");
-      } else {
-        await deactivateSupplierService(supplier.id);
-        toast.success("Vendor deactivated.");
-      }
+      await dispatch(
+        setSupplierActivation({
+          supplierId: supplier.id,
+          isActive: nextActive,
+        }),
+      ).unwrap();
 
-      await loadSuppliers({ reset: true });
+      toast.success(nextActive ? "Vendor activated." : "Vendor deactivated.");
     } catch (activationError) {
       toast.error(
         activationError instanceof Error
@@ -118,32 +111,15 @@ export default function VendorsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vendors</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage supplier directory, contacts, and activation status.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => void refreshSuppliers()}
-            aria-label="Refresh vendors"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-          </Button>
-          <Button asChild>
-            <Link href="/vendor/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Add vendor
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageSectionHeader
+        title="Vendors"
+        description="Manage supplier directory, contacts, and activation status."
+        onRefresh={refreshSuppliers}
+        refreshing={refreshing}
+        refreshAriaLabel="Refresh vendors"
+        addHref="/vendor/create"
+        addLabel="Add vendor"
+      />
 
       <div className="rounded-lg border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-12">
@@ -200,7 +176,7 @@ export default function VendorsPage() {
           <div className="md:col-span-2 md:self-end">
             <Button
               className="w-full"
-              onClick={() => void loadSuppliers({ reset: true })}
+              onClick={applyFilters}
             >
               Apply
             </Button>
@@ -219,26 +195,13 @@ export default function VendorsPage() {
           Loading vendors...
         </div>
       ) : (
-        <>
-          <VendorsTable
-            data={suppliers}
-            busySupplierId={savingSupplierId}
-            onEdit={(supplier) => setEditingSupplier(supplier)}
-            onActivate={(supplier) => void changeActivation(supplier, true)}
-            onDeactivate={(supplier) => void changeActivation(supplier, false)}
-          />
-
-          {hasMore && (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => void loadSuppliers({ reset: false })}
-              >
-                Load more
-              </Button>
-            </div>
-          )}
-        </>
+        <VendorsTable
+          data={filteredSuppliers}
+          busySupplierId={savingSupplierId}
+          onEdit={(supplier) => setEditingSupplier(supplier)}
+          onActivate={(supplier) => void changeActivation(supplier, true)}
+          onDeactivate={(supplier) => void changeActivation(supplier, false)}
+        />
       )}
 
       {editingSupplier ? (
@@ -250,7 +213,9 @@ export default function VendorsPage() {
             }
           }}
           supplier={editingSupplier}
-          onSaved={refreshSuppliers}
+          onSaved={async () => {
+            setEditingSupplier(null);
+          }}
         />
       ) : null}
     </section>

@@ -23,36 +23,19 @@ export const DEFAULT_ROLE_ALIASES: Record<Role, string> = {
 };
 
 export const PERMISSIONS = {
-  ORDERS_VIEW: "orders.view",
-  ORDERS_CREATE: "orders.create",
-  ORDERS_UPDATE: "orders.update",
-  ORDERS_CANCEL: "orders.cancel",
-  KITCHEN_VIEW: "kitchen.view",
-  KITCHEN_UPDATE: "kitchen.update",
-  FULFILLMENT_VIEW: "fulfillment.view",
-  FULFILLMENT_UPDATE: "fulfillment.update",
-  TABLES_VIEW: "tables.view",
-  TABLES_UPDATE: "tables.update",
-  BILLING_VIEW: "billing.view",
-  BILLING_CREATE: "billing.create",
-  BILLING_UPDATE: "billing.update",
-  MENU_VIEW: "menu.view",
-  MENU_CREATE: "menu.create",
-  MENU_UPDATE: "menu.update",
-  MENU_DELETE: "menu.delete",
-  INVENTORY_VIEW: "inventory.view",
-  INVENTORY_UPDATE: "inventory.update",
+  DASHBOARD_VIEW: "dashboard.view",
   USERS_VIEW: "users.view",
   USERS_CREATE: "users.create",
   USERS_UPDATE: "users.update",
-  ATTENDANCE_VIEW: "attendance.view",
-  ATTENDANCE_UPDATE: "attendance.update",
-  SALARY_VIEW: "salary.view",
-  SALARY_UPDATE: "salary.update",
-  SALARY_PAYMENT_CREATE: "salary_payment.create",
-  SALARY_ADVANCE_CREATE: "salary_advance.create",
-  FINANCIAL_REPORTS_VIEW: "financial_reports.view",
-  REPORTS_VIEW: "reports.view",
+  VENDORS_VIEW: "vendors.view",
+  VENDORS_CREATE: "vendors.create",
+  VENDORS_UPDATE: "vendors.update",
+  PURCHASE_INVOICES_VIEW: "purchase_invoices.view",
+  PURCHASE_INVOICES_CREATE: "purchase_invoices.create",
+  PURCHASE_INVOICES_UPDATE: "purchase_invoices.update",
+  SUPPLIER_PAYMENTS_VIEW: "supplier_payments.view",
+  SUPPLIER_PAYMENTS_CREATE: "supplier_payments.create",
+  SUPPLIER_PAYMENTS_VOID: "supplier_payments.void",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -62,59 +45,31 @@ export type PermissionOverrides = {
   deny: Permission[];
 };
 
-export type PermissionOverridesInput = Permission[] | PermissionOverrides | null | undefined;
+export type PermissionOverridesInput =
+  | Permission[]
+  | PermissionOverrides
+  | null
+  | undefined;
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   admin: Object.values(PERMISSIONS),
   cashier: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.ORDERS_CREATE,
-    PERMISSIONS.ORDERS_UPDATE,
-    PERMISSIONS.BILLING_VIEW,
-    PERMISSIONS.BILLING_CREATE,
-    PERMISSIONS.TABLES_VIEW,
-    PERMISSIONS.ATTENDANCE_VIEW,
-    PERMISSIONS.SALARY_VIEW,
-    PERMISSIONS.SALARY_PAYMENT_CREATE,
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.VENDORS_VIEW,
+    PERMISSIONS.PURCHASE_INVOICES_VIEW,
+    PERMISSIONS.SUPPLIER_PAYMENTS_VIEW,
   ],
-  chef: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.KITCHEN_VIEW,
-    PERMISSIONS.KITCHEN_UPDATE,
-    PERMISSIONS.MENU_VIEW,
-    PERMISSIONS.INVENTORY_VIEW,
-  ],
-  order_fulfillment: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.ORDERS_UPDATE,
-    PERMISSIONS.FULFILLMENT_VIEW,
-    PERMISSIONS.FULFILLMENT_UPDATE,
-    PERMISSIONS.MENU_VIEW,
-  ],
-  waiter: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.ORDERS_CREATE,
-    PERMISSIONS.ORDERS_UPDATE,
-    PERMISSIONS.TABLES_VIEW,
-    PERMISSIONS.TABLES_UPDATE,
-    PERMISSIONS.MENU_VIEW,
-  ],
-  roti_specialist: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.KITCHEN_VIEW,
-    PERMISSIONS.KITCHEN_UPDATE,
-    PERMISSIONS.MENU_VIEW,
-  ],
-  paratha_specialist: [
-    PERMISSIONS.ORDERS_VIEW,
-    PERMISSIONS.KITCHEN_VIEW,
-    PERMISSIONS.KITCHEN_UPDATE,
-    PERMISSIONS.MENU_VIEW,
-  ],
-  cleaner: [PERMISSIONS.TABLES_VIEW],
+  chef: [PERMISSIONS.DASHBOARD_VIEW],
+  order_fulfillment: [PERMISSIONS.DASHBOARD_VIEW],
+  waiter: [PERMISSIONS.DASHBOARD_VIEW],
+  roti_specialist: [PERMISSIONS.DASHBOARD_VIEW],
+  paratha_specialist: [PERMISSIONS.DASHBOARD_VIEW],
+  cleaner: [PERMISSIONS.DASHBOARD_VIEW],
 };
 
-export function normalizePermissionOverrides(overrides: PermissionOverridesInput): PermissionOverrides {
+export function normalizePermissionOverrides(
+  overrides: PermissionOverridesInput,
+): PermissionOverrides {
   if (!overrides) return { allow: [], deny: [] };
   if (Array.isArray(overrides)) return { allow: overrides, deny: [] };
   return {
@@ -123,7 +78,10 @@ export function normalizePermissionOverrides(overrides: PermissionOverridesInput
   };
 }
 
-export function resolvePermissions(role: Role, overrides?: PermissionOverridesInput): Permission[] {
+export function resolvePermissions(
+  role: Role,
+  overrides?: PermissionOverridesInput,
+): Permission[] {
   const basePermissions = new Set(DEFAULT_ROLE_PERMISSIONS[role]);
   const normalized = normalizePermissionOverrides(overrides);
 

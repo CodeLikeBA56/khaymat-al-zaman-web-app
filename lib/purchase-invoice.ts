@@ -1,4 +1,7 @@
-import { PurchaseInvoiceStatus, type PurchaseInvoiceLine } from "@/types/purchase-invoice";
+import {
+  PurchaseInvoiceStatus,
+  type PurchaseInvoiceLine,
+} from "@/types/purchase-invoice";
 
 export const PURCHASE_INVOICES_COLLECTION = "purchaseInvoices";
 export const PURCHASE_INVOICE_NUMBERS_COLLECTION = "purchaseInvoiceNumbers";
@@ -20,10 +23,33 @@ export function normalizeCurrencyCode(currency: string) {
 }
 
 export function validateCurrencyMinorUnit(currencyMinorUnit: number) {
-  if (!Number.isInteger(currencyMinorUnit) || currencyMinorUnit < 0 || currencyMinorUnit > 6) {
+  if (
+    !Number.isInteger(currencyMinorUnit) ||
+    currencyMinorUnit < 0 ||
+    currencyMinorUnit > 6
+  ) {
     throw new Error("Currency minor unit must be an integer between 0 and 6.");
   }
   return currencyMinorUnit;
+}
+
+export function resolveCurrencyMinorUnit(currency: string) {
+  const normalizedCurrency = normalizeCurrencyCode(currency);
+
+  try {
+    const formatter = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: normalizedCurrency,
+    });
+
+    const resolvedDigits = formatter.resolvedOptions().maximumFractionDigits;
+
+    return validateCurrencyMinorUnit(
+      typeof resolvedDigits === "number" ? resolvedDigits : 2,
+    );
+  } catch {
+    return 2;
+  }
 }
 
 export function validateLineItems(lines: PurchaseInvoiceLine[]) {
@@ -38,7 +64,9 @@ export function validateLineItems(lines: PurchaseInvoiceLine[]) {
     }
 
     if (!Number.isInteger(line.amountMinor) || line.amountMinor <= 0) {
-      throw new Error(`Line ${index + 1} amount must be a positive integer minor amount.`);
+      throw new Error(
+        `Line ${index + 1} amount must be a positive integer minor amount.`,
+      );
     }
 
     return {
@@ -63,7 +91,10 @@ export function calculateInvoiceTotals(input: {
 }): InvoiceTotals {
   const lines = validateLineItems(input.lines);
   const subTotalMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0);
-  const taxAmountMinor = validateMinorAmount("Tax amount", input.taxAmountMinor ?? 0);
+  const taxAmountMinor = validateMinorAmount(
+    "Tax amount",
+    input.taxAmountMinor ?? 0,
+  );
   const discountAmountMinor = validateMinorAmount(
     "Discount amount",
     input.discountAmountMinor ?? 0,

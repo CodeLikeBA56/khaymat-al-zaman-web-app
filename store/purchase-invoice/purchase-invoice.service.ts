@@ -32,6 +32,10 @@ import {
   validateLineItems,
 } from "@/lib/purchase-invoice";
 import {
+  DEFAULT_CURRENCY_CODE,
+  DEFAULT_CURRENCY_MINOR_UNIT,
+} from "@/config/currency";
+import {
   getSupplierByIdService,
   type ListSuppliersPageInput,
   listSuppliersPageService,
@@ -109,6 +113,13 @@ function mapPurchaseInvoiceDocument(
     throw new Error("Purchase invoice document data is missing.");
   }
 
+  const paidAmountMinor =
+    typeof data.paidAmountMinor === "number" ? data.paidAmountMinor : 0;
+  const remainingPayableMinor =
+    typeof data.remainingPayableMinor === "number"
+      ? data.remainingPayableMinor
+      : data.grandTotalMinor - paidAmountMinor;
+
   return {
     id: snapshot.id,
     invoiceNumber: data.invoiceNumber,
@@ -120,6 +131,8 @@ function mapPurchaseInvoiceDocument(
     taxAmountMinor: data.taxAmountMinor,
     discountAmountMinor: data.discountAmountMinor,
     grandTotalMinor: data.grandTotalMinor,
+    paidAmountMinor,
+    remainingPayableMinor,
     currency: data.currency,
     currencyMinorUnit: data.currencyMinorUnit,
     status: data.status,
@@ -313,9 +326,9 @@ export async function createPurchaseInvoiceDraftService(
   }
 
   const lines = normalizeLines(input.lines);
-  const currency = normalizeCurrencyCode(input.currency);
+  const currency = normalizeCurrencyCode(DEFAULT_CURRENCY_CODE);
   const currencyMinorUnit = validateCurrencyMinorUnit(
-    input.currencyMinorUnit ?? 2,
+    DEFAULT_CURRENCY_MINOR_UNIT,
   );
 
   const totals = calculateInvoiceTotals({
@@ -339,6 +352,8 @@ export async function createPurchaseInvoiceDraftService(
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     currency,
     currencyMinorUnit,
     status: PurchaseInvoiceStatus.DRAFT,
@@ -491,15 +506,11 @@ export async function updateDraftPurchaseInvoiceService(
 
   const nextLines =
     input.lines !== undefined ? normalizeLines(input.lines) : current.lines;
-  const nextCurrency =
-    input.currency !== undefined
-      ? normalizeCurrencyCode(input.currency)
-      : current.currency;
+  const nextCurrency = normalizeCurrencyCode(DEFAULT_CURRENCY_CODE);
 
-  const nextCurrencyMinorUnit =
-    input.currencyMinorUnit !== undefined
-      ? validateCurrencyMinorUnit(input.currencyMinorUnit)
-      : current.currencyMinorUnit;
+  const nextCurrencyMinorUnit = validateCurrencyMinorUnit(
+    DEFAULT_CURRENCY_MINOR_UNIT,
+  );
 
   const totals = calculateInvoiceTotals({
     lines: nextLines,
@@ -522,6 +533,8 @@ export async function updateDraftPurchaseInvoiceService(
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     currency: nextCurrency,
     currencyMinorUnit: nextCurrencyMinorUnit,
     ...(input.notes !== undefined
@@ -565,6 +578,8 @@ export async function postPurchaseInvoiceService(invoiceId: string) {
     taxAmountMinor: totals.taxAmountMinor,
     discountAmountMinor: totals.discountAmountMinor,
     grandTotalMinor: totals.grandTotalMinor,
+    paidAmountMinor: 0,
+    remainingPayableMinor: totals.grandTotalMinor,
     status: PurchaseInvoiceStatus.POSTED,
     postedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

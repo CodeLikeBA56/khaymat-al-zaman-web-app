@@ -4,6 +4,7 @@ import { clearAuthSession, setAuthSession } from "@/store/auth/auth.reducer";
 import { fetchEmployees, clearEmployeeState } from "@/store/employee/employee.reducer";
 import { clearAttendanceState } from "@/store/attendance/attendance.reducer";
 import { clearFinanceState } from "@/store/finance/finance.reducer";
+import { clearSupplierState, fetchSuppliers } from "@/store/supplier/supplier.reducer";
 
 export const listenerMiddleware = createListenerMiddleware();
 
@@ -43,6 +44,7 @@ listenerMiddleware.startListening({
   effect: async (action, listenerApi) => {
     if (action.payload.role === "admin") {
       await listenerApi.dispatch(fetchEmployees({ force: true }));
+      await listenerApi.dispatch(fetchSuppliers());
     }
   },
 });
@@ -53,5 +55,6 @@ listenerMiddleware.startListening({
     listenerApi.dispatch(clearEmployeeState());
     listenerApi.dispatch(clearAttendanceState());
     listenerApi.dispatch(clearFinanceState());
+    listenerApi.dispatch(clearSupplierState());
   },
 });

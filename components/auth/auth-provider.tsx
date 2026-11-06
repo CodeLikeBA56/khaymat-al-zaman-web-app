@@ -5,6 +5,7 @@ import { useAppDispatch } from "@/store/hooks";
 import type { UserDocument } from "@/types/user";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentRoleFromProfile } from "@/lib/employment";
+import { getEffectivePermissions, getFirstAccessiblePath } from "@/config/access-control";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 import { fetchUserDocumentById } from "@/store/employee/employee.service";
@@ -61,10 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dispatch(clearAuthSession());
         }
 
+        const permissions = getEffectivePermissions(nextProfile);
+        const fallbackPath = getFirstAccessiblePath(permissions);
+
         if (pathname === "/login") {
-          router.replace(currentRole === "admin" ? "/dashboard" : "/login");
-        } else if (currentRole !== "admin") {
+          router.replace(fallbackPath ?? "/login");
+        } else if (!fallbackPath) {
           await auth.signOut();
+          dispatch(clearAuthSession());
           router.replace("/login");
         }
       } catch {

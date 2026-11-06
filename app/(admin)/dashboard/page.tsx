@@ -9,6 +9,7 @@ import { buildSalaryDetailsRows, sumRemainingSalaries } from "@/lib/dashboard";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchEmployees } from "@/store/employee/employee.reducer";
 import { fetchAllOutstandingSalaryPeriodsService } from "@/store/finance/finance.service";
+import { getTotalActiveVendorsDailyPaymentRangeService } from "@/store/supplier/supplier.service";
 import { StatsCard } from "@/components/dashboard/stats-card";
 
 export default function DashboardPage() {
@@ -17,6 +18,8 @@ export default function DashboardPage() {
   const [outstandingSalaryPeriods, setOutstandingSalaryPeriods] = useState<
     SalaryPeriod[]
   >([]);
+  const [totalExpectedVendorDailyExpenseRange, setTotalExpectedVendorDailyExpenseRange] =
+    useState({ min: 0, max: 0 });
   const { employees, isLoading } = useAppSelector((state) => state.employee);
 
   useEffect(() => {
@@ -32,6 +35,15 @@ export default function DashboardPage() {
     }
 
     void loadOutstandingPeriods();
+  }, []);
+
+  useEffect(() => {
+    async function loadExpectedVendorExpense() {
+      const total = await getTotalActiveVendorsDailyPaymentRangeService();
+      setTotalExpectedVendorDailyExpenseRange(total);
+    }
+
+    void loadExpectedVendorExpense();
   }, []);
 
   const rows = useMemo(
@@ -61,6 +73,12 @@ export default function DashboardPage() {
             isLoading ? "Loading..." : formatCurrency(totalRemainingSalary)
           }
           onClick={() => router.push("/dashboard/salary-details")}
+        />
+        <StatsCard
+          icon={Coins}
+          title="Expected Daily Vendor Expense"
+          description="Combined minimum-to-maximum daily payable range for active vendors."
+          value={`${formatCurrency(totalExpectedVendorDailyExpenseRange.min)} - ${formatCurrency(totalExpectedVendorDailyExpenseRange.max)}`}
         />
       </div>
     </section>

@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Timestamp } from "firebase/firestore";
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { ReusableDialog } from "@/components/reusable-dialog";
+import { PageSectionHeader } from "@/components/layout/page-section-header";
 import { PurchaseInvoicesTable } from "@/components/purchase-invoices/purchase-invoices-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,10 @@ import {
   voidPurchaseInvoiceService,
   type ListPurchaseInvoicesPageInput,
 } from "@/store/purchase-invoice/purchase-invoice.service";
-import { PurchaseInvoiceStatus, type PurchaseInvoice } from "@/types/purchase-invoice";
+import {
+  PurchaseInvoiceStatus,
+  type PurchaseInvoice,
+} from "@/types/purchase-invoice";
 import type { Supplier } from "@/types/supplier";
 
 type InvoiceStatusFilter = PurchaseInvoiceStatus | "ALL";
@@ -116,7 +119,9 @@ export default function PurchaseInvoicesPage() {
         }
 
         const page = await listPurchaseInvoicesPageService(input);
-        setInvoices((prev) => (reset ? page.invoices : [...prev, ...page.invoices]));
+        setInvoices((prev) =>
+          reset ? page.invoices : [...prev, ...page.invoices],
+        );
         setNextCursor(page.nextCursor);
         setHasMore(page.hasMore && Boolean(page.nextCursor));
       } catch (loadError) {
@@ -192,43 +197,34 @@ export default function PurchaseInvoicesPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Purchase invoices</h1>
-          <p className="text-sm text-muted-foreground">
-            Track supplier invoices, post drafts, and preserve full financial history.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => void refresh()}
-            aria-label="Refresh invoices"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
-          <Button asChild>
-            <Link href="/purchase-invoice/create">
-              <Plus className="mr-2 h-4 w-4" />
-              New invoice
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageSectionHeader
+        title="Purchase invoices"
+        description="Track supplier invoices, post drafts, and preserve full financial history."
+        onRefresh={refresh}
+        refreshing={refreshing}
+        refreshAriaLabel="Refresh invoices"
+        addHref="/purchase-invoice/create"
+        addLabel="New invoice"
+      />
 
       <div className="rounded-lg border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-12">
           <div className="space-y-2 md:col-span-3">
             <Label>Supplier</Label>
-            <Select value={supplierId} onValueChange={setSupplierId}>
+            <Select
+              value={supplierId}
+              onValueChange={setSupplierId}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All suppliers</SelectItem>
                 {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id}>
+                  <SelectItem
+                    key={supplier.id}
+                    value={supplier.id}
+                  >
                     {supplier.name}
                   </SelectItem>
                 ))}
@@ -248,7 +244,10 @@ export default function PurchaseInvoicesPage() {
               <SelectContent>
                 <SelectItem value="ALL">All statuses</SelectItem>
                 {Object.values(PurchaseInvoiceStatus).map((item) => (
-                  <SelectItem key={item} value={item}>
+                  <SelectItem
+                    key={item}
+                    value={item}
+                  >
                     {item.replaceAll("_", " ")}
                   </SelectItem>
                 ))}
@@ -271,7 +270,10 @@ export default function PurchaseInvoicesPage() {
           </div>
 
           <div className="space-y-2 md:col-span-2 md:self-end">
-            <Button className="w-full" onClick={() => void loadInvoices({ reset: true })}>
+            <Button
+              className="w-full"
+              onClick={() => void loadInvoices({ reset: true })}
+            >
               Apply
             </Button>
           </div>
@@ -299,7 +301,9 @@ export default function PurchaseInvoicesPage() {
       </div>
 
       {error ? (
-        <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+        <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
       ) : null}
 
       {loading ? (
@@ -320,7 +324,9 @@ export default function PurchaseInvoicesPage() {
             <div className="flex justify-center">
               <Button
                 variant="outline"
-                onClick={() => void loadInvoices({ reset: false, cursor: nextCursor })}
+                onClick={() =>
+                  void loadInvoices({ reset: false, cursor: nextCursor })
+                }
               >
                 Load more
               </Button>
@@ -360,7 +366,10 @@ export default function PurchaseInvoicesPage() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setVoidDialog(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setVoidDialog(null)}
+            >
               Cancel
             </Button>
             <Button

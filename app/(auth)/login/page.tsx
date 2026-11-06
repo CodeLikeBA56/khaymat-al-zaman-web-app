@@ -6,6 +6,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { getCurrentRoleFromProfile } from "@/lib/employment";
+import {
+  getEffectivePermissions,
+  getFirstAccessiblePath,
+} from "@/config/access-control";
 import { fetchUserDocumentById } from "@/store/employee/employee.service";
 
 import { Label } from "@/components/ui/label";
@@ -15,7 +19,6 @@ import { Button } from "@/components/ui/button";
 export default function LoginPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuth();
-  const profileRole = getCurrentRoleFromProfile(profile);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,9 +27,15 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && profileRole === "admin")
-      router.replace("/dashboard");
-  }, [loading, profileRole, router, user]);
+    if (loading || !user || !profile) return;
+
+    const permissions = getEffectivePermissions(profile);
+    const fallbackPath = getFirstAccessiblePath(permissions);
+
+    if (fallbackPath) {
+      router.replace(fallbackPath);
+    }
+  }, [loading, profile, router, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,14 +57,20 @@ export default function LoginPage() {
 
       const role = getCurrentRoleFromProfile(userProfile);
 
-      if (role !== "admin") {
+      if (!role) {
         await auth.signOut();
-        throw new Error(
-          "Only an admin account can access this system right now.",
-        );
+        throw new Error("No active role is assigned to this account.");
       }
 
-      router.replace("/dashboard");
+      const permissions = getEffectivePermissions(userProfile);
+      const fallbackPath = getFirstAccessiblePath(permissions);
+
+      if (!fallbackPath) {
+        await auth.signOut();
+        throw new Error("No route access is configured for this account.");
+      }
+
+      router.replace(fallbackPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
     } finally {
@@ -68,7 +83,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-sm">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">Khaymat-Al-Zaman ERP</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Admin login</p>
+          <p className="mt-1 text-sm text-muted-foreground">Staff login</p>
         </div>
 
         <form

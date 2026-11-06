@@ -1,5 +1,3 @@
-import type { Timestamp } from "firebase/firestore";
-
 export enum SupplierType {
   COMPANY = "COMPANY",
   INDIVIDUAL = "INDIVIDUAL",
@@ -19,25 +17,36 @@ export interface SupplierDocument {
   code: string;
   name: string;
   type: SupplierType;
+  dailyPaymentLimit: {
+    min: number;
+    max: number;
+  };
   email?: string;
   phone: string;
   address?: Address;
   taxNumber?: string;
   registrationNumber?: string;
   isActive: boolean;
-  createdAt: Timestamp | null;
-  updatedAt: Timestamp | null;
+  createdAt: unknown;
+  updatedAt: unknown;
 }
 
 export interface Supplier extends SupplierDocument {
   id: string;
 }
 
-export type CreateSupplierInput = Pick<SupplierDocument, "name" | "type" | "phone"> &
+export type CreateSupplierInput = Pick<
+  SupplierDocument,
+  "name" | "type" | "phone"
+> &
   Partial<
     Pick<
       SupplierDocument,
-      "email" | "taxNumber" | "registrationNumber" | "address"
+      | "email"
+      | "taxNumber"
+      | "registrationNumber"
+      | "address"
+      | "dailyPaymentLimit"
     >
   >;
 

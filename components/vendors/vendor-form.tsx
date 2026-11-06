@@ -14,9 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  createSupplierService,
-  updateSupplierService,
-} from "@/store/supplier/supplier.service";
+  createSupplier,
+  updateSupplier,
+} from "@/store/supplier/supplier.reducer";
+import { useAppDispatch } from "@/store/hooks";
 import { SupplierType, type Supplier } from "@/types/supplier";
 
 type VendorFormProps = {
@@ -30,6 +31,8 @@ type VendorFormState = {
   name: string;
   type: SupplierType;
   phone: string;
+  dailyPaymentLimitMin: string;
+  dailyPaymentLimitMax: string;
   email: string;
   taxNumber: string;
   registrationNumber: string;
@@ -45,6 +48,8 @@ const initialState: VendorFormState = {
   name: "",
   type: SupplierType.COMPANY,
   phone: "",
+  dailyPaymentLimitMin: "0",
+  dailyPaymentLimitMax: "0",
   email: "",
   taxNumber: "",
   registrationNumber: "",
@@ -63,6 +68,8 @@ function toFormState(supplier?: Supplier | null): VendorFormState {
     name: supplier.name,
     type: supplier.type,
     phone: supplier.phone,
+    dailyPaymentLimitMin: String(supplier.dailyPaymentLimit?.min ?? 0),
+    dailyPaymentLimitMax: String(supplier.dailyPaymentLimit?.max ?? 0),
     email: supplier.email ?? "",
     taxNumber: supplier.taxNumber ?? "",
     registrationNumber: supplier.registrationNumber ?? "",
@@ -110,6 +117,7 @@ export function VendorForm({
   supplierId,
   onSaved,
 }: VendorFormProps) {
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const [form, setForm] = useState<VendorFormState>(initialState);
   const [saving, setSaving] = useState(false);
@@ -129,6 +137,10 @@ export function VendorForm({
         name: form.name,
         type: form.type,
         phone: form.phone,
+        dailyPaymentLimit: {
+          min: Number(form.dailyPaymentLimitMin || "0"),
+          max: Number(form.dailyPaymentLimitMax || "0"),
+        },
         email: form.email || undefined,
         taxNumber: form.taxNumber || undefined,
         registrationNumber: form.registrationNumber || undefined,
@@ -141,10 +153,15 @@ export function VendorForm({
           throw new Error("Supplier id is required.");
         }
 
-        await updateSupplierService(targetSupplierId, payload);
+        await dispatch(
+          updateSupplier({
+            supplierId: targetSupplierId,
+            input: payload,
+          }),
+        ).unwrap();
         toast.success("Vendor updated successfully.");
       } else {
-        await createSupplierService(payload);
+        await dispatch(createSupplier(payload)).unwrap();
         toast.success("Vendor created successfully.");
       }
 
@@ -268,6 +285,51 @@ export function VendorForm({
                 setForm((prev) => ({
                   ...prev,
                   registrationNumber: event.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Payment commitment limits
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Define expected daily payment floor and ceiling in SAR for forecasting.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="vendor-daily-payment-min">Daily minimum (SAR)</Label>
+            <Input
+              id="vendor-daily-payment-min"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.dailyPaymentLimitMin}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  dailyPaymentLimitMin: event.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vendor-daily-payment-max">Daily maximum (SAR)</Label>
+            <Input
+              id="vendor-daily-payment-max"
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.dailyPaymentLimitMax}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  dailyPaymentLimitMax: event.target.value,
                 }))
               }
             />
