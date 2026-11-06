@@ -1,5 +1,3 @@
-import type { Timestamp } from "firebase/firestore";
-
 export enum SupplierType {
   COMPANY = "COMPANY",
   INDIVIDUAL = "INDIVIDUAL",
@@ -29,8 +27,8 @@ export interface SupplierDocument {
   taxNumber?: string;
   registrationNumber?: string;
   isActive: boolean;
-  createdAt: Timestamp | null;
-  updatedAt: Timestamp | null;
+  createdAt: unknown;
+  updatedAt: unknown;
 }
 
 export interface Supplier extends SupplierDocument {

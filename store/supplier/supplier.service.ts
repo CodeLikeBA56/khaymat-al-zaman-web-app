@@ -27,8 +27,8 @@ import type {
 } from "@/types/supplier";
 import { SupplierType } from "@/types/supplier";
 
-const VENDORS_COLLECTION = "vendors";
 const META_COLLECTION = "meta";
+const VENDORS_COLLECTION = "vendors";
 const SUPPLIER_CODE_COUNTER_DOCUMENT_ID = "vendorCodeCounter";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -59,6 +59,29 @@ export type SuppliersPage = {
   nextCursor: string | null;
 };
 
+function toSerializableDate(value: unknown): unknown {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value &&
+    typeof (value as { seconds?: unknown }).seconds === "number"
+  ) {
+    const millis = (value as { seconds: number }).seconds * 1000;
+    return new Date(millis).toISOString();
+  }
+
+  return value;
+}
+
 function normalizePaymentLimitValue(value: number, fieldName: string) {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${fieldName} must be a non-negative number.`);
@@ -81,7 +104,9 @@ function normalizeDailyPaymentLimit(
   const max = normalizePaymentLimitValue(input.max, "Daily maximum payment");
 
   if (max < min) {
-    throw new Error("Daily maximum payment cannot be less than daily minimum payment.");
+    throw new Error(
+      "Daily maximum payment cannot be less than daily minimum payment.",
+    );
   }
 
   return {
@@ -235,8 +260,8 @@ function mapSupplierDocument(
     taxNumber: data.taxNumber,
     registrationNumber: data.registrationNumber,
     isActive: data.isActive,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
+    createdAt: toSerializableDate(data.createdAt),
+    updatedAt: toSerializableDate(data.updatedAt),
   };
 }
 
@@ -506,7 +531,9 @@ export async function updateSupplierService(
   }
 
   if (input.dailyPaymentLimit !== undefined) {
-    payload.dailyPaymentLimit = normalizeDailyPaymentLimit(input.dailyPaymentLimit);
+    payload.dailyPaymentLimit = normalizeDailyPaymentLimit(
+      input.dailyPaymentLimit,
+    );
   }
 
   if (input.address !== undefined) {

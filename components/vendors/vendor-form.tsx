@@ -14,9 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  createSupplierService,
-  updateSupplierService,
-} from "@/store/supplier/supplier.service";
+  createSupplier,
+  updateSupplier,
+} from "@/store/supplier/supplier.reducer";
+import { useAppDispatch } from "@/store/hooks";
 import { SupplierType, type Supplier } from "@/types/supplier";
 
 type VendorFormProps = {
@@ -116,6 +117,7 @@ export function VendorForm({
   supplierId,
   onSaved,
 }: VendorFormProps) {
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const [form, setForm] = useState<VendorFormState>(initialState);
   const [saving, setSaving] = useState(false);
@@ -151,10 +153,15 @@ export function VendorForm({
           throw new Error("Supplier id is required.");
         }
 
-        await updateSupplierService(targetSupplierId, payload);
+        await dispatch(
+          updateSupplier({
+            supplierId: targetSupplierId,
+            input: payload,
+          }),
+        ).unwrap();
         toast.success("Vendor updated successfully.");
       } else {
-        await createSupplierService(payload);
+        await dispatch(createSupplier(payload)).unwrap();
         toast.success("Vendor created successfully.");
       }
 
