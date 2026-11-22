@@ -53,7 +53,11 @@ async function getOwnedOpenPlan(planId: string) {
   if (plan.status === "closed") {
     throw new Error("Transactions cannot be changed on a closed salary plan.");
   }
-  return { snapshot, plan, planRef: doc(db, SALARY_PLANS_COLLECTION, normalizedId) };
+  return {
+    snapshot,
+    plan,
+    planRef: doc(db, SALARY_PLANS_COLLECTION, normalizedId),
+  };
 }
 
 async function getOwnedPlan(planId: string) {
@@ -65,15 +69,24 @@ async function getOwnedPlan(planId: string) {
   if (plan.userId !== getAuthenticatedUid()) {
     throw new Error("Salary plan does not belong to the authenticated user.");
   }
-  return { snapshot, plan, planRef: doc(db, SALARY_PLANS_COLLECTION, normalizedId) };
+  return {
+    snapshot,
+    plan,
+    planRef: doc(db, SALARY_PLANS_COLLECTION, normalizedId),
+  };
 }
 
 function resolveSelectedCategory(plan: SalaryPlanDocument, categoryId: string) {
   const normalizedId = categoryId.trim();
   if (!normalizedId) throw new Error("Transaction category id is required.");
   validateExpenseTransactionCategory(normalizedId, plan.categories);
-  const category = plan.categories.find((item) => item.categoryId === normalizedId);
-  if (!category) throw new Error("Transaction category is not selected in this salary plan.");
+  const category = plan.categories.find(
+    (item) => item.categoryId === normalizedId,
+  );
+  if (!category)
+    throw new Error(
+      "Transaction category is not selected in this salary plan.",
+    );
   return category;
 }
 
@@ -91,7 +104,8 @@ export async function createExpenseTransaction(
 
   await runTransaction(db, async (transaction) => {
     const currentPlanSnapshot = await transaction.get(planRef);
-    if (!currentPlanSnapshot.exists()) throw new Error("Salary plan not found.");
+    if (!currentPlanSnapshot.exists())
+      throw new Error("Salary plan not found.");
     const currentPlan = currentPlanSnapshot.data() as SalaryPlanDocument;
     if (currentPlan.userId !== getAuthenticatedUid()) {
       throw new Error("Salary plan does not belong to the authenticated user.");
@@ -123,7 +137,8 @@ export async function createExpenseTransaction(
   });
 
   const created = await getDoc(transactionRef);
-  if (!created.exists()) throw new Error("Could not load the created transaction.");
+  if (!created.exists())
+    throw new Error("Could not load the created transaction.");
   return mapExpenseTransaction(created);
 }
 
@@ -146,7 +161,13 @@ export async function getExpenseTransactionById(
   const normalizedId = transactionId.trim();
   if (!normalizedId) throw new Error("Expense transaction id is required.");
   const snapshot = await getDoc(
-    doc(db, SALARY_PLANS_COLLECTION, salaryPlanId, "transactions", normalizedId),
+    doc(
+      db,
+      SALARY_PLANS_COLLECTION,
+      salaryPlanId,
+      "transactions",
+      normalizedId,
+    ),
   );
   if (!snapshot.exists()) return null;
   return mapExpenseTransaction(snapshot);
@@ -176,11 +197,14 @@ export async function updateExpenseTransaction(
       throw new Error("Salary plan does not belong to the authenticated user.");
     }
     if (currentPlan.status === "closed") {
-      throw new Error("Transactions cannot be changed on a closed salary plan.");
+      throw new Error(
+        "Transactions cannot be changed on a closed salary plan.",
+      );
     }
 
     const existingSnapshot = await transaction.get(transactionRef);
-    if (!existingSnapshot.exists()) throw new Error("Expense transaction not found.");
+    if (!existingSnapshot.exists())
+      throw new Error("Expense transaction not found.");
     const existing = existingSnapshot.data() as ExpenseTransactionDocument;
 
     const nextCategoryId = input.categoryId ?? existing.categoryId;
@@ -210,7 +234,10 @@ export async function updateExpenseTransaction(
     });
   });
 
-  return (await getExpenseTransactionById(salaryPlanId, normalizedId)) as ExpenseTransaction;
+  return (await getExpenseTransactionById(
+    salaryPlanId,
+    normalizedId,
+  )) as ExpenseTransaction;
 }
 
 export async function deleteExpenseTransaction(
@@ -237,11 +264,14 @@ export async function deleteExpenseTransaction(
       throw new Error("Salary plan does not belong to the authenticated user.");
     }
     if (currentPlan.status === "closed") {
-      throw new Error("Transactions cannot be deleted on a closed salary plan.");
+      throw new Error(
+        "Transactions cannot be deleted on a closed salary plan.",
+      );
     }
 
     const existingSnapshot = await transaction.get(transactionRef);
-    if (!existingSnapshot.exists()) throw new Error("Expense transaction not found.");
+    if (!existingSnapshot.exists())
+      throw new Error("Expense transaction not found.");
     const existing = existingSnapshot.data() as ExpenseTransactionDocument;
 
     transaction.delete(transactionRef);

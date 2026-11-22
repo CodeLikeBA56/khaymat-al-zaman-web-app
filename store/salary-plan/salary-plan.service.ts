@@ -104,7 +104,11 @@ export async function createSalaryPlan(input: CreateSalaryPlanInput) {
     throw new Error("Total allocated budget cannot exceed salary amount.");
   }
 
-  const planRef = doc(db, SALARY_PLANS_COLLECTION, getDeterministicPlanId(userId, month));
+  const planRef = doc(
+    db,
+    SALARY_PLANS_COLLECTION,
+    getDeterministicPlanId(userId, month),
+  );
   const created = await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(planRef);
     if (existing.exists()) {
@@ -135,7 +139,8 @@ export async function createSalaryPlan(input: CreateSalaryPlanInput) {
   });
 
   const snapshot = await getDoc(planRef);
-  if (!snapshot.exists()) throw new Error("Could not load the created salary plan.");
+  if (!snapshot.exists())
+    throw new Error("Could not load the created salary plan.");
   return { ...mapSalaryPlan(snapshot), id: created.id };
 }
 
@@ -161,8 +166,10 @@ export async function updateSalaryPlan(
 ) {
   const plan = await assertPlanOwnedByCurrentUser(planId);
   if (!plan) throw new Error("Salary plan not found.");
-  if (plan.status === "closed") throw new Error("Closed salary plans cannot be edited.");
-  if (plan.status !== "draft") throw new Error("Only draft salary plans can be edited.");
+  if (plan.status === "closed")
+    throw new Error("Closed salary plans cannot be edited.");
+  if (plan.status !== "draft")
+    throw new Error("Only draft salary plans can be edited.");
 
   const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
   const nextSalaryAmount =
@@ -192,7 +199,9 @@ export async function updateSalaryPlan(
     updates.currency = input.currency.trim() || "SAR";
   if (input.status !== undefined) {
     if (input.status !== "draft" && input.status !== "active") {
-      throw new Error("Salary plan status must be draft or active for editing.");
+      throw new Error(
+        "Salary plan status must be draft or active for editing.",
+      );
     }
     updates.status = input.status;
   }
@@ -204,9 +213,12 @@ export async function updateSalaryPlan(
 export async function activateSalaryPlan(planId: string) {
   const plan = await assertPlanOwnedByCurrentUser(planId);
   if (!plan) throw new Error("Salary plan not found.");
-  if (plan.status === "closed") throw new Error("Closed salary plans cannot be activated.");
+  if (plan.status === "closed")
+    throw new Error("Closed salary plans cannot be activated.");
   if (plan.categories.length === 0) {
-    throw new Error("A salary plan requires at least one category budget before activation.");
+    throw new Error(
+      "A salary plan requires at least one category budget before activation.",
+    );
   }
   validateSalaryPlanCategories(plan.categories);
   const totalAllocated = calculateAllocated(plan.categories);

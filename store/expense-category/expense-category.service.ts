@@ -64,7 +64,8 @@ export async function createExpenseCategory(input: CreateExpenseCategoryInput) {
   });
 
   const created = await getDoc(categoryRef);
-  if (!created.exists()) throw new Error("Could not load the created category.");
+  if (!created.exists())
+    throw new Error("Could not load the created category.");
   return mapExpenseCategory(created);
 }
 
@@ -108,10 +109,7 @@ export async function updateExpenseCategory(
   if (input.color !== undefined) updates.color = input.color?.trim() || "";
   if (input.isActive !== undefined) updates.isActive = input.isActive;
 
-  await updateDoc(
-    doc(db, EXPENSE_CATEGORIES_COLLECTION, category.id),
-    updates,
-  );
+  await updateDoc(doc(db, EXPENSE_CATEGORIES_COLLECTION, category.id), updates);
   return (await getExpenseCategoryById(category.id)) as ExpenseCategory;
 }
 
