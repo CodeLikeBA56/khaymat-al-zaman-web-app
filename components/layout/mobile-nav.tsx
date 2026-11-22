@@ -9,6 +9,7 @@ import {
   Menu,
   ReceiptText,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
@@ -131,6 +132,25 @@ export function MobileNav() {
             >
               <HandCoins className="h-4 w-4" />
               Supplier Payments
+            </div>
+          )
+        ) : null}
+        {canViewLink("/expense", permissions) ? (
+          isPathEnabled("/expense") ? (
+            <Link
+              href="/expense"
+              className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-accent"
+            >
+              <WalletCards className="h-4 w-4" />
+              Expenses
+            </Link>
+          ) : (
+            <div
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center gap-2 rounded-md px-3 py-2 opacity-50"
+            >
+              <WalletCards className="h-4 w-4" />
+              Expenses
             </div>
           )
         ) : null}

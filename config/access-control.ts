@@ -12,6 +12,7 @@ export const MODULE_KEYS = {
   VENDORS: "vendors",
   PURCHASE_INVOICES: "purchase_invoices",
   SUPPLIER_PAYMENTS: "supplier_payments",
+  EXPENSES: "expenses",
 } as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[keyof typeof MODULE_KEYS];
@@ -22,6 +23,7 @@ export const PRODUCTION_ENABLED_MODULES: ReadonlyArray<ModuleKey> = [
   MODULE_KEYS.VENDORS,
   MODULE_KEYS.PURCHASE_INVOICES,
   MODULE_KEYS.SUPPLIER_PAYMENTS,
+  MODULE_KEYS.EXPENSES,
 ];
 
 const DISABLE_NON_PRODUCTION_MODULES = true;
@@ -57,6 +59,11 @@ export const NAVIGATION_PERMISSIONS: ReadonlyArray<RoutePermissionRule> = [
     pathPrefix: "/supplier-payment",
     permission: PERMISSIONS.SUPPLIER_PAYMENTS_VIEW,
     module: MODULE_KEYS.SUPPLIER_PAYMENTS,
+  },
+  {
+    pathPrefix: "/expense",
+    permission: PERMISSIONS.EXPENSES_VIEW,
+    module: MODULE_KEYS.EXPENSES,
   },
 ];
 
@@ -97,12 +104,11 @@ export function isModuleEnabled(module: ModuleKey) {
 function getRouteRule(pathname: string) {
   const normalizedPath = pathname.trim();
 
-  return NAVIGATION_PERMISSIONS
-    .filter((rule) =>
+  return NAVIGATION_PERMISSIONS.filter(
+    (rule) =>
       normalizedPath === rule.pathPrefix ||
       normalizedPath.startsWith(`${rule.pathPrefix}/`),
-    )
-    .sort((a, b) => b.pathPrefix.length - a.pathPrefix.length)[0];
+  ).sort((a, b) => b.pathPrefix.length - a.pathPrefix.length)[0];
 }
 
 export function isPathEnabled(pathname: string) {
@@ -132,7 +138,10 @@ export function canViewLink(pathname: string, permissions: Permission[]) {
 
 export function getFirstAccessiblePath(permissions: Permission[]) {
   for (const rule of NAVIGATION_PERMISSIONS) {
-    if (isModuleEnabled(rule.module) && hasPermission(permissions, rule.permission)) {
+    if (
+      isModuleEnabled(rule.module) &&
+      hasPermission(permissions, rule.permission)
+    ) {
       return rule.pathPrefix;
     }
   }

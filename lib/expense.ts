@@ -54,3 +54,60 @@ export function calculateSalaryPlanStats(
     categories,
   };
 }
+
+export type ExpensePeriodSummary = {
+  period: string;
+  total: number;
+};
+
+export function calculateExpensePeriodStats(
+  transactions: readonly ExpenseTransaction[],
+  now: Date = new Date(),
+) {
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const inRange = (start: Date) => (transaction: ExpenseTransaction) =>
+    transaction.transactionDate.toMillis() >= start.getTime();
+
+  const sum = (items: readonly ExpenseTransaction[]) =>
+    items.reduce((total, transaction) => total + transaction.amount, 0);
+
+  return {
+    daily: sum(transactions.filter(inRange(startOfDay))),
+    weekly: sum(transactions.filter(inRange(startOfWeek))),
+    monthly: sum(transactions.filter(inRange(startOfMonth))),
+  };
+}
+
+export function calculateCategorySpending(
+  transactions: readonly ExpenseTransaction[],
+) {
+  const totals = new Map<string, { categoryId: string; categoryName: string; total: number }>();
+  transactions.forEach((transaction) => {
+    const current = totals.get(transaction.categoryId);
+    totals.set(transaction.categoryId, {
+      categoryId: transaction.categoryId,
+      categoryName: transaction.categoryName,
+      total: (current?.total ?? 0) + transaction.amount,
+    });
+  });
+  return Array.from(totals.values()).sort((a, b) => b.total - a.total);
+}
+
+export function calculateHistoricalMonthlyComparison(
+  transactions: readonly ExpenseTransaction[],
+) {
+  const totals = new Map<string, number>();
+  transactions.forEach((transaction) => {
+    const date = transaction.transactionDate.toDate();
+    const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    totals.set(period, (totals.get(period) ?? 0) + transaction.amount);
+  });
+  return Array.from(totals.entries())
+    .map(([period, total]) => ({ period, total }))
+    .sort((a, b) => a.period.localeCompare(b.period));
+}

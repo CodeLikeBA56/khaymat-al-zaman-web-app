@@ -11,6 +11,7 @@ import {
   ReceiptText,
   Users,
   Utensils,
+  WalletCards,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -44,6 +45,11 @@ const navigationGroups = [
         name: "Supplier Payments",
         icon: HandCoins,
         href: "/supplier-payment",
+      },
+      {
+        name: "Personal Expenses",
+        icon: WalletCards,
+        href: "/expense",
       },
     ],
   },

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Timestamp } from "firebase/firestore";
-import { calculateSalaryPlanStats } from "./expense";
+import {
+  calculateCategorySpending,
+  calculateExpensePeriodStats,
+  calculateHistoricalMonthlyComparison,
+  calculateSalaryPlanStats,
+} from "./expense";
 import type { ExpenseTransaction, SalaryPlan } from "../types/expense";
 
 const plan: SalaryPlan = {
@@ -60,4 +65,35 @@ test("calculateSalaryPlanStats computes category usage", () => {
   });
   assert.equal(stats.categories[1].categorySpent, 0);
   assert.equal(stats.categories[1].usagePercentage, 0);
+});
+
+test("salary plan calculations handle empty transactions", () => {
+  const stats = calculateSalaryPlanStats(plan, []);
+  assert.equal(stats.totalSpent, 0);
+  assert.equal(stats.remainingAllocated, 600);
+  assert.equal(stats.categories[0].usagePercentage, 0);
+});
+
+test("salary plan calculations handle zero budgets and over-budget spending", () => {
+  const zeroBudgetPlan: SalaryPlan = {
+    ...plan,
+    categories: [{ categoryId: "food", categoryName: "Food", budgetAmount: 0 }],
+  };
+  const stats = calculateSalaryPlanStats(zeroBudgetPlan, transactions);
+  assert.equal(stats.categories[0].usagePercentage, 0);
+  assert.equal(stats.categories[0].categoryRemaining, -150);
+});
+
+test("category spending and period statistics calculate from transactions", () => {
+  const categoryTotals = calculateCategorySpending(transactions);
+  assert.deepEqual(categoryTotals, [{ categoryId: "food", categoryName: "Food", total: 150 }]);
+  const periodStats = calculateExpensePeriodStats(transactions, new Date(1970, 0, 1));
+  assert.equal(periodStats.daily, 150);
+  assert.equal(periodStats.weekly, 150);
+  assert.equal(periodStats.monthly, 150);
+});
+
+test("historical monthly comparison sorts monthly totals", () => {
+  const comparison = calculateHistoricalMonthlyComparison(transactions);
+  assert.deepEqual(comparison, [{ period: "1970-01", total: 150 }]);
 });
