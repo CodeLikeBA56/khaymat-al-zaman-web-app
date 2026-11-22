@@ -1,10 +1,19 @@
 import { createListenerMiddleware } from "@reduxjs/toolkit";
 import { toast } from "sonner";
 import { clearAuthSession, setAuthSession } from "@/store/auth/auth.reducer";
-import { fetchEmployees, clearEmployeeState } from "@/store/employee/employee.reducer";
+import {
+  fetchEmployees,
+  clearEmployeeState,
+} from "@/store/employee/employee.reducer";
 import { clearAttendanceState } from "@/store/attendance/attendance.reducer";
 import { clearFinanceState } from "@/store/finance/finance.reducer";
-import { clearSupplierState, fetchSuppliers } from "@/store/supplier/supplier.reducer";
+import {
+  clearSupplierState,
+  fetchSuppliers,
+} from "@/store/supplier/supplier.reducer";
+import { clearExpenseCategoryState } from "@/store/expense-category/expense-category.reducer";
+import { clearSalaryPlanState } from "@/store/salary-plan/salary-plan.reducer";
+import { clearExpenseTransactionState } from "@/store/expense-transaction/expense-transaction.reducer";
 
 export const listenerMiddleware = createListenerMiddleware();
 
@@ -56,5 +65,8 @@ listenerMiddleware.startListening({
     listenerApi.dispatch(clearAttendanceState());
     listenerApi.dispatch(clearFinanceState());
     listenerApi.dispatch(clearSupplierState());
+    listenerApi.dispatch(clearExpenseCategoryState());
+    listenerApi.dispatch(clearSalaryPlanState());
+    listenerApi.dispatch(clearExpenseTransactionState());
   },
 });
