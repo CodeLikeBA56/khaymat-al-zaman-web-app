@@ -89,16 +89,21 @@ export const fetchSuppliers = createAsyncThunk<
   },
   {
     condition: (args, { getState }) => {
-      if (args?.force) return true;
       const state = getState() as { supplier?: SupplierState };
+
+      if (state.supplier?.isLoading) return false;
+
+      if (args?.force) return true;
+
       if (!state.supplier) return true;
-      if (state.supplier.isLoading) return false;
+
       if (
         state.supplier.loadedAt &&
         Date.now() - state.supplier.loadedAt < 60_000
       ) {
         return false;
       }
+
       return true;
     },
   },
