@@ -4,6 +4,9 @@ import { employeeReducer } from "@/store/employee/employee.reducer";
 import { attendanceReducer } from "@/store/attendance/attendance.reducer";
 import { financeReducer } from "@/store/finance/finance.reducer";
 import { supplierReducer } from "@/store/supplier/supplier.reducer";
+import { expenseCategoryReducer } from "@/store/expense-category/expense-category.reducer";
+import { salaryPlanReducer } from "@/store/salary-plan/salary-plan.reducer";
+import { expenseTransactionReducer } from "@/store/expense-transaction/expense-transaction.reducer";
 import { listenerMiddleware } from "@/store/listener.middleware";
 
 export const store = configureStore({
@@ -13,6 +16,9 @@ export const store = configureStore({
     employee: employeeReducer,
     attendance: attendanceReducer,
     supplier: supplierReducer,
+    expenseCategory: expenseCategoryReducer,
+    salaryPlan: salaryPlanReducer,
+    expenseTransaction: expenseTransactionReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(listenerMiddleware.middleware),
