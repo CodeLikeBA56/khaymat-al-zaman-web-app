@@ -86,8 +86,13 @@ test("salary plan calculations handle zero budgets and over-budget spending", ()
 
 test("category spending and period statistics calculate from transactions", () => {
   const categoryTotals = calculateCategorySpending(transactions);
-  assert.deepEqual(categoryTotals, [{ categoryId: "food", categoryName: "Food", total: 150 }]);
-  const periodStats = calculateExpensePeriodStats(transactions, new Date(1970, 0, 1));
+  assert.deepEqual(categoryTotals, [
+    { categoryId: "food", categoryName: "Food", total: 150 },
+  ]);
+  const periodStats = calculateExpensePeriodStats(
+    transactions,
+    new Date(1970, 0, 1),
+  );
   assert.equal(periodStats.daily, 150);
   assert.equal(periodStats.weekly, 150);
   assert.equal(periodStats.monthly, 150);

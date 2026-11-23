@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   orderBy,
@@ -29,6 +30,18 @@ import {
 const SALARY_PLANS_COLLECTION = "salaryPlans";
 const EXPENSE_CATEGORIES_COLLECTION = "expenseCategories";
 
+const CATEGORY_QUERY_CHUNK_SIZE = 30;
+
+type CategoryDocumentResult = {
+  id: string;
+  data: ExpenseCategoryDocument;
+};
+
+type CategoryChunkQuery = (
+  userId: string,
+  categoryIds: readonly string[],
+) => Promise<CategoryDocumentResult[]>;
+
 function getAuthenticatedUid() {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("You must be signed in.");
@@ -49,33 +62,93 @@ function getDeterministicPlanId(userId: string, month: string) {
   return `${encodeURIComponent(userId)}_${month}`;
 }
 
+function chunkCategoryIds(categoryIds: readonly string[]) {
+  const chunks: string[][] = [];
+  for (
+    let index = 0;
+    index < categoryIds.length;
+    index += CATEGORY_QUERY_CHUNK_SIZE
+  ) {
+    chunks.push(categoryIds.slice(index, index + CATEGORY_QUERY_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+async function queryCategoryChunks(
+  userId: string,
+  categoryIds: readonly string[],
+): Promise<CategoryDocumentResult[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db, EXPENSE_CATEGORIES_COLLECTION),
+      where("userId", "==", userId),
+      where(documentId(), "in", [...categoryIds]),
+    ),
+  );
+
+  return snapshot.docs.map((categorySnapshot) => ({
+    id: categorySnapshot.id,
+    data: categorySnapshot.data() as ExpenseCategoryDocument,
+  }));
+}
+
 async function resolveCategoryBudgets(
   userId: string,
   categories: SalaryPlanCategory[],
+  runCategoryQuery: CategoryChunkQuery = queryCategoryChunks,
 ) {
   validateSalaryPlanCategories(categories);
 
+  if (categories.length === 0) {
+    return [];
+  }
+
+  const categoryIds = categories.map((category) => category.categoryId);
+  let chunkResults: CategoryDocumentResult[][];
+
+  try {
+    chunkResults = await Promise.all(
+      chunkCategoryIds(categoryIds).map((chunk) =>
+        runCategoryQuery(userId, chunk),
+      ),
+    );
+  } catch (error) {
+    throw new Error(
+      `Could not validate expense categories: ${
+        error instanceof Error ? error.message : "Firestore query failed."
+      }`,
+    );
+  }
+
+  const categoryDocs = new Map<string, ExpenseCategoryDocument>();
+  chunkResults.forEach((results) => {
+    results.forEach((result) => categoryDocs.set(result.id, result.data));
+  });
+
   const resolved: SalaryPlanCategory[] = [];
   for (const category of categories) {
-    const snapshot = await getDoc(
-      doc(db, EXPENSE_CATEGORIES_COLLECTION, category.categoryId),
-    );
-    if (!snapshot.exists()) {
-      throw new Error(`Category ${category.categoryId} does not exist.`);
+    const data = categoryDocs.get(category.categoryId);
+    if (!data) {
+      throw new Error(
+        `Category ${category.categoryId} does not exist or is not accessible.`,
+      );
     }
-    const data = snapshot.data() as ExpenseCategoryDocument;
     if (data.userId !== userId) {
-      throw new Error("Category does not belong to the authenticated user.");
+      throw new Error(
+        `Category ${category.categoryId} does not belong to the authenticated user.`,
+      );
     }
-    if (!data.isActive) {
+    if (data.isActive !== true) {
       throw new Error(`Category ${category.categoryId} is inactive.`);
     }
+
     resolved.push({
       categoryId: category.categoryId,
       categoryName: data.name,
       budgetAmount: validateNonNegativeAmount(category.budgetAmount),
     });
   }
+
   return resolved;
 }
 
@@ -243,3 +316,9 @@ export async function closeSalaryPlan(planId: string) {
   });
   return (await getSalaryPlanById(plan.id)) as SalaryPlan;
 }
+
+export const __salaryPlanServiceInternals = {
+  CATEGORY_QUERY_CHUNK_SIZE,
+  chunkCategoryIds,
+  resolveCategoryBudgets,
+};

@@ -86,7 +86,10 @@ export function calculateExpensePeriodStats(
 export function calculateCategorySpending(
   transactions: readonly ExpenseTransaction[],
 ) {
-  const totals = new Map<string, { categoryId: string; categoryName: string; total: number }>();
+  const totals = new Map<
+    string,
+    { categoryId: string; categoryName: string; total: number }
+  >();
   transactions.forEach((transaction) => {
     const current = totals.get(transaction.categoryId);
     totals.set(transaction.categoryId, {

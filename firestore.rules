@@ -195,6 +195,194 @@ service cloud.firestore {
           >= request.resource.data.dailyPaymentLimit.min;
     }
 
+    function hasValidExpenseCategoryShape() {
+      return request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && (
+          !("description" in request.resource.data)
+          || request.resource.data.description is string
+        )
+        && (
+          !("icon" in request.resource.data)
+          || request.resource.data.icon is string
+        )
+        && (
+          !("color" in request.resource.data)
+          || request.resource.data.color is string
+        )
+        && request.resource.data.isActive is bool
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function hasProtectedExpenseCategoryIdentityFields() {
+      return request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function hasValidSalaryPlanCategoryShape(category) {
+      return category.categoryId is string
+        && category.categoryId.size() > 0
+        && category.categoryName is string
+        && category.categoryName.size() > 0
+        && category.budgetAmount is number
+        && category.budgetAmount >= 0;
+    }
+
+    function hasValidSalaryPlanShape() {
+      return request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.month is string
+        && request.resource.data.month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.salaryAmount is number
+        && request.resource.data.salaryAmount >= 0
+        && request.resource.data.currency is string
+        && request.resource.data.currency.size() > 0
+        && request.resource.data.status in ["draft", "active", "closed"]
+        && request.resource.data.categories is list
+        && request.resource.data.categories.size() <= 20
+        && request.resource.data.totalAllocated is number
+        && request.resource.data.totalAllocated >= 0
+        && request.resource.data.totalAllocated <= request.resource.data.salaryAmount
+        && request.resource.data.totalSpent is number
+        && request.resource.data.totalSpent >= 0
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function hasProtectedSalaryPlanIdentityFields() {
+      return request.resource.data.userId == resource.data.userId
+        && request.resource.data.month == resource.data.month
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isDraftSalaryPlanEdit() {
+      return resource.data.status == "draft"
+        && (request.resource.data.status == "draft"
+          || request.resource.data.status == "active")
+        && hasProtectedSalaryPlanIdentityFields();
+    }
+
+    function isSalaryPlanCloseUpdate() {
+      return (resource.data.status == "draft"
+          || resource.data.status == "active")
+        && request.resource.data.status == "closed"
+        && hasProtectedSalaryPlanIdentityFields();
+    }
+
+    function isSalaryPlanTransactionTotalUpdate() {
+      return request.resource.data.status == resource.data.status
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.month == resource.data.month
+        && request.resource.data.salaryAmount == resource.data.salaryAmount
+        && request.resource.data.currency == resource.data.currency
+        && request.resource.data.categories == resource.data.categories
+        && request.resource.data.totalAllocated == resource.data.totalAllocated
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.totalSpent is number
+        && request.resource.data.totalSpent >= 0;
+    }
+
+    function hasValidExpenseTransactionShape() {
+      return request.resource.data.categoryId is string
+        && request.resource.data.categoryId.size() > 0
+        && request.resource.data.categoryName is string
+        && request.resource.data.categoryName.size() > 0
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && (
+          !("description" in request.resource.data)
+          || request.resource.data.description is string
+        )
+        && request.resource.data.transactionDate is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdBy is string
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
+    function hasProtectedExpenseTransactionIdentityFields() {
+      return request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
+    function hasOwnedActiveExpenseCategory(categoryId) {
+      let category = get(/databases/$(database)/documents/expenseCategories/$(categoryId)).data;
+      return exists(/databases/$(database)/documents/expenseCategories/$(categoryId))
+        && category.userId == request.auth.uid
+        && category.isActive == true;
+    }
+
+    function isCategorySelectedInSalaryPlan(planId, categoryId, categoryName) {
+      let plan = get(/databases/$(database)/documents/salaryPlans/$(planId)).data;
+      let categories = plan.categories;
+      return categories is list
+        && categories.size() <= 20
+        && (
+          (categories.size() > 0
+            && categories[0].categoryId == categoryId
+            && categories[0].categoryName == categoryName)
+          || (categories.size() > 1
+            && categories[1].categoryId == categoryId
+            && categories[1].categoryName == categoryName)
+          || (categories.size() > 2
+            && categories[2].categoryId == categoryId
+            && categories[2].categoryName == categoryName)
+          || (categories.size() > 3
+            && categories[3].categoryId == categoryId
+            && categories[3].categoryName == categoryName)
+          || (categories.size() > 4
+            && categories[4].categoryId == categoryId
+            && categories[4].categoryName == categoryName)
+          || (categories.size() > 5
+            && categories[5].categoryId == categoryId
+            && categories[5].categoryName == categoryName)
+          || (categories.size() > 6
+            && categories[6].categoryId == categoryId
+            && categories[6].categoryName == categoryName)
+          || (categories.size() > 7
+            && categories[7].categoryId == categoryId
+            && categories[7].categoryName == categoryName)
+          || (categories.size() > 8
+            && categories[8].categoryId == categoryId
+            && categories[8].categoryName == categoryName)
+          || (categories.size() > 9
+            && categories[9].categoryId == categoryId
+            && categories[9].categoryName == categoryName)
+          || (categories.size() > 10
+            && categories[10].categoryId == categoryId
+            && categories[10].categoryName == categoryName)
+          || (categories.size() > 11
+            && categories[11].categoryId == categoryId
+            && categories[11].categoryName == categoryName)
+          || (categories.size() > 12
+            && categories[12].categoryId == categoryId
+            && categories[12].categoryName == categoryName)
+          || (categories.size() > 13
+            && categories[13].categoryId == categoryId
+            && categories[13].categoryName == categoryName)
+          || (categories.size() > 14
+            && categories[14].categoryId == categoryId
+            && categories[14].categoryName == categoryName)
+          || (categories.size() > 15
+            && categories[15].categoryId == categoryId
+            && categories[15].categoryName == categoryName)
+          || (categories.size() > 16
+            && categories[16].categoryId == categoryId
+            && categories[16].categoryName == categoryName)
+          || (categories.size() > 17
+            && categories[17].categoryId == categoryId
+            && categories[17].categoryName == categoryName)
+          || (categories.size() > 18
+            && categories[18].categoryId == categoryId
+            && categories[18].categoryName == categoryName)
+          || (categories.size() > 19
+            && categories[19].categoryId == categoryId
+            && categories[19].categoryName == categoryName)
+        );
+    }
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow create: if isAdmin();
@@ -319,6 +507,66 @@ service cloud.firestore {
       return signedIn()
         && userDoc.isActive == true
         && (hasAdminRoleFromWorkHistory || hasLegacyAdminRole);
+    }
+
+    match /expenseCategories/{categoryId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && hasValidExpenseCategoryShape();
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && hasValidExpenseCategoryShape()
+        && hasProtectedExpenseCategoryIdentityFields();
+      allow delete: if false;
+    }
+
+    match /salaryPlans/{planId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && hasValidSalaryPlanShape()
+        && (
+          request.resource.data.status == "draft"
+          || (
+            request.resource.data.status == "active"
+            && request.resource.data.categories.size() > 0
+          )
+        );
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && hasValidSalaryPlanShape()
+        && (
+          isDraftSalaryPlanEdit()
+          || isSalaryPlanCloseUpdate()
+          || isSalaryPlanTransactionTotalUpdate()
+        );
+      allow delete: if false;
+
+      match /transactions/{transactionId} {
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.userId == request.auth.uid;
+        allow create: if signedIn()
+          && hasValidExpenseTransactionShape()
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.status != "closed"
+          && isSelectedOwnedExpenseCategory(planId, request.resource.data.categoryId, request.resource.data.categoryName);
+        allow update: if signedIn()
+          && hasValidExpenseTransactionShape()
+          && hasProtectedExpenseTransactionIdentityFields()
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.status != "closed"
+          && isSelectedOwnedExpenseCategory(planId, request.resource.data.categoryId, request.resource.data.categoryName);
+        allow delete: if signedIn()
+          && resource.data.createdBy == request.auth.uid
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/salaryPlans/$(planId)).data.status != "closed";
+      }
+    }
+
+    function isSelectedOwnedExpenseCategory(planId, categoryId, categoryName) {
+      let category = get(/databases/$(database)/documents/expenseCategories/$(categoryId)).data;
+      return exists(/databases/$(database)/documents/expenseCategories/$(categoryId))
+        && category.userId == request.auth.uid
+        && isCategorySelectedInSalaryPlan(planId, categoryId, categoryName);
     }
   }
 }

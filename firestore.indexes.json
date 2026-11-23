@@ -258,6 +258,29 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "paymentDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "expenseCategories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "salaryPlans",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "month", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "transactionDate", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
